@@ -177,8 +177,10 @@ def parse_VASP_directory(directory,
                       OUTCAR_filename="OUTCAR",
                       vasprunxml_filename="vasprun.xml",
                       vasplog_filename="vasp.log"):
+    
     # Find file matching pattern
     structure_files = glob.glob(os.path.join(directory, "starter*.vasp"))
+    
     if len(structure_files) > 0:
         init_structure = Structure.from_file(structure_files[0])
     else:
@@ -319,13 +321,27 @@ class DatabaseGenerator():
     def __init__(self, parent_dir):
         self.parent_dir = parent_dir
         
-    def build_database(self, extract_directories = True, cleanup=False, keep_filenames_after_cleanup = [], keep_filename_patterns_after_cleanup = [], max_dir_count = 2000):
+    def build_database(self, extract_directories = True, cleanup=False, keep_filenames_after_cleanup = [], keep_filename_patterns_after_cleanup = [], max_dir_count = None, df_filename = None):
         
         start_time = time.time()
         
         dirs = find_vasp_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories)
-        results = pd.concat(parallelise(parse_VASP_directory, dirs))
         
+        if max_dir_count:
+            results = []
+            for i, chunks in enumerate(gen_tools.chunk_list(dirs, max_dir_count)):
+                df = pd.concat(parallelise(parse_VASP_directory, chunks))
+                results.append(df)
+                if df_filename:
+                    df.to_pickle(f"{i}_{df_filename}.pkl")
+                else:
+                    df.to_pickle(f"{i}.pkl")
+        else:
+            df = pd.concat(parallelise(parse_VASP_directory, dirs))
+            results = [df]
+            if df_filename:
+                df.to_pickle(f"{df_filename}.pkl")
+            
         end_time = time.time()
         elapsed_time = end_time - start_time
         
@@ -338,8 +354,10 @@ class DatabaseGenerator():
             gen_tools.cleanup_dir(directory_path=dirs, keep=True, files=[], file_patterns=[])
             parallelise(gen_tools.cleanup_dir, dirs, [True] * len(dirs), keep_filenames_after_cleanup*len(dirs), keep_filename_patterns_after_cleanup*len(dirs))
         
-        pd.concat()
         print("Elapsed time:", np.round(elapsed_time,3), "seconds")
+        
+        results = pd.concat(results)
+        
         return results
     
 def calculation_collector(directory):

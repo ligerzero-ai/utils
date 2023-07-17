@@ -311,7 +311,8 @@ def extract_files_from_tarballs_parallel(tarball_paths, filenames, suffix=False)
 def find_and_extract_files_from_tarballs_parallel(parent_dir,
                                                   extension=".tar.gz",
                                                   filenames=[],
-                                                  suffix=False):
+                                                  suffix=False,
+                                                  prefix=False):
     """
     Finds and extracts specific files from multiple tarball files within a parent directory using parallel processing.
 
@@ -322,6 +323,7 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
                                            If a list, it should have the same length as the number of tarball files found in the parent directory.
                                            Defaults to an empty list, which means all files will be extracted.
         suffix (bool, optional): Determines whether to append suffixes to the extracted filenames. Defaults to False.
+        prefix (bool, optional): Determines whether to prepend prefixes to the extracted filenames. Defaults to False.
 
     Usage:
         # Extract all files from .tar.gz files within a parent directory in parallel
@@ -344,7 +346,12 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
     else:
         suffixes = [None for _ in filepaths]
         
-    parallelise(extract_files_from_tarball, filepaths, filenames, suffixes)
+    if prefix:
+        # Really ugly so this only works with .tar.gz files for now
+        prefixes = [os.path.basename(filepath).split(".tar")[0] for filepath in filepaths]
+    else:
+        prefixes = [None for _ in filepaths]        
+    parallelise(extract_files_from_tarball, filepaths, filenames, suffixes, prefixes)
     
 def compress_directory(directory_path,
                        exclude_files = [],

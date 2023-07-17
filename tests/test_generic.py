@@ -48,7 +48,10 @@ class TestChunkList(unittest.TestCase):
         # Test with a large list and large n value
         lst5 = list(range(1, 1001))
         result5 = chunk_list(lst5, 100)
-        expected_result5 = [list(range(1, 101)), list(range(101, 201)), ..., list(range(901, 1001))]
+        expected_result5 = [list(range(1, 101)), list(range(101, 201)), list(range(201, 301)),
+                            list(range(301, 401)), list(range(401, 501)), list(range(501, 601)),
+                            list(range(601, 701)), list(range(701, 801)), list(range(801, 901)),
+                            list(range(901, 1001))]
         self.assertEqual(result5, expected_result5)
 
 class TestSearchLineInFile(unittest.TestCase):
