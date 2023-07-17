@@ -186,8 +186,12 @@ def extract_tarball(tarball_filepath, extraction_path):
         - It extracts all the contents of the tarball to the specified extraction path.
         - The directory structure within the tarball will be preserved in the extraction process.
     """
-    with tarfile.open(tarball_filepath, "r:gz") as tar:
-        tar.extractall(extraction_path)
+    try:
+        with tarfile.open(tarball_filepath, "r:gz") as tar:
+            tar.extractall(extraction_path)
+    except EOFError:
+        # EOFError: Compressed file ended before the end-of-stream marker was reached
+        a = 0
 
 def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz")):
     """
