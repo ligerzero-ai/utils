@@ -340,7 +340,7 @@ class DatabaseGenerator():
             df = pd.concat(parallelise(parse_VASP_directory, dirs))
             results = [df]
             if df_filename:
-                df.to_pickle(f"{df_filename}.pkl")
+                df.to_pickle(f"vasp_database.pkl")
             
         end_time = time.time()
         elapsed_time = end_time - start_time
