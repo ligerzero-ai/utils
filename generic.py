@@ -189,7 +189,8 @@ def extract_tarball(tarball_filepath, extraction_path):
     try:
         with tarfile.open(tarball_filepath, "r:gz") as tar:
             tar.extractall(extraction_path)
-    except EOFError:
+    except:
+        # EOFError
         # EOFError: Compressed file ended before the end-of-stream marker was reached
         a = 0
 
