@@ -84,7 +84,7 @@ def read_OUTCAR(filename="OUTCAR"):
     try:
         outcar = Outcar()
         outcar.from_file(filename = filename)
-        print(f"Successful read of OUTCAR: {filename}")
+        # print(f"Successful read of OUTCAR: {filename}")
     except:
         df = pd.DataFrame([[np.nan,
             directory,
@@ -106,7 +106,7 @@ def read_OUTCAR(filename="OUTCAR"):
                     "magmoms",
                     "scf_steps",
                     "convergence"])
-        print(f"Error in OUTCAR read {filename}, exit")
+        # print(f"Error in OUTCAR read {filename}, exit")
         return df
     
     structure_name = os.path.basename(os.path.dirname(filename))
@@ -385,22 +385,34 @@ class DatabaseGenerator():
         
         dirs = find_vasp_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories)
         
+        print(f"The total number of vasp directories that we are building the database out of is {len(dirs)}")
+        
         if max_dir_count:
-            # This is far too expensive.. better to read 
-            # results = []
+
+            pkl_filenames = []
+            
             for i, chunks in enumerate(gen_tools.chunk_list(dirs, max_dir_count)):
+                step_time = time.time()
                 df = pd.concat(parallelise(parse_VASP_directory, chunks))
-                # results.append(df)
                 if df_filename:
-                    df.to_pickle(f"{i}_{df_filename}.pkl")
+                    db_filename = f"{i}_{df_filename}.pkl"
                 else:
-                    df.to_pickle(f"{i}.pkl")
+                    db_filename = f"{i}.pkl"
+                pkl_filenames.append(os.path.join(self.parent_dir, db_filename))
+                df.to_pickle(os.path.join(self.parent_dir, db_filename))
+                step_taken_time = np.round(step_time - time.time(),3)
+                print(f"Step {i}: {step_taken_time} seconds taken for {len(chunks)} parse steps")
+                
+            df = pd.concat([pd.read_pickle(partial_df) for partial_df in pkl_filenames])
+            df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
+            
         else:
+            
             df = pd.concat(parallelise(parse_VASP_directory, dirs))
             results = [df]
             if df_filename:
-                df.to_pickle(f"vasp_database.pkl")
-            
+                df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
+        
         end_time = time.time()
         elapsed_time = end_time - start_time
         
@@ -414,9 +426,7 @@ class DatabaseGenerator():
             parallelise(gen_tools.cleanup_dir, dirs, [True] * len(dirs), keep_filenames_after_cleanup*len(dirs), keep_filename_patterns_after_cleanup*len(dirs))
         
         print("Elapsed time:", np.round(elapsed_time,3), "seconds")
-        
-        results = pd.concat(results)
-        
+
         return results
     
 def calculation_collector(directory):
