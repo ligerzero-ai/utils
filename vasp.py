@@ -139,11 +139,6 @@ def read_OUTCAR(filename="OUTCAR"):
         magmoms = np.nan
         
     try:
-        convergence = check_convergence(file_path=os.path.dirname(filename))
-    except:
-        convergence = np.nan
-        
-    try:
         scf_steps = [len(i) for i in outcar.parse_dict["scf_energies"]]
     except:
         scf_steps = np.nan
@@ -156,8 +151,7 @@ def read_OUTCAR(filename="OUTCAR"):
                         forces,
                         stresses,
                         magmoms,
-                        scf_steps,
-                        convergence,]],
+                        scf_steps]],
                 columns = ["job_name",
                             "filepath",
                             "structures",
@@ -166,8 +160,7 @@ def read_OUTCAR(filename="OUTCAR"):
                             "forces",
                             "stresses",
                             "magmoms",
-                            "scf_steps",
-                            "convergence"])
+                            "scf_steps"])
     return df
 
 def parse_VASP_directory(directory,
@@ -185,20 +178,46 @@ def parse_VASP_directory(directory,
         init_structure = Structure.from_file(structure_files[0])
     else:
         init_structure = None
-    
+
+    # OUTCAR first
+    try:
+        df = read_OUTCAR(filename=os.path.join(directory, OUTCAR_filename))
+    except:
+        df = pd.DataFrame([[np.nan,
+                    directory,
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                    convergence,]],
+            columns = ["job_name",
+                        "filepath",
+                        "structures",
+                        "energy",
+                        "energy_zero",
+                        "forces",
+                        "stresses",
+                        "magmoms",
+                        "scf_steps",
+                        "convergence"])
+        
     convergence = check_convergence(directory=directory,
                                     filename_vasprun=vasprunxml_filename,
-                                    filename_vasplog=vasplog_filename)
-
+                                    filename_vasplog=vasplog_filename)    
     # INCAR
     try:
         incar = Incar.from_file(os.path.join(directory, INCAR_filename))
+        incar = incar.to_json()
     except:
         incar = np.nan
         
     try:
         # KPOINTS
         kpoints = Kpoints.from_file(os.path.join(directory, KPOINTS_filename))
+        kpoints = kpoints.to_json()
     except FileNotFoundError:
         try:
             kspacing = incar["KSPACING"]
@@ -213,28 +232,28 @@ def parse_VASP_directory(directory,
         element_list = np.nan
         element_count = np.nan
         electron_of_potcar = np.nan
-        df["element_list"] = [element_list]
-        df["element_count"] = [element_count]
-        df["potcar_electron_count"] = [electron_of_potcar]
-        df["total_electron_count"] = [electron_count]
-        df["convergence"] = [convergence]
-        df["kpoints"] = [kpoints.to_json()]
-        df["incar"] = [incar.to_json()]
+
         
     try:
         electron_count = get_total_electron_count(directory_path=directory)
     except:
+        electron_count = np.nan
         
-    try:
-        df = read_OUTCAR(filename=os.path.join(directory, OUTCAR_filename))
-    except:
-        df = np.nan
 
+    
+    df["element_list"] = [element_list]
+    df["element_count"] = [element_count]
+    df["potcar_electron_count"] = [electron_of_potcar]
+    df["total_electron_count"] = [electron_count]
+    df["convergence"] = [convergence]
+    
+    df["kpoints"] = [kpoints]
+    df["incar"] = [incar]
 
     return df
 
 
-def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplog="vasp.log"):
+def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplog="vasp.log", backup_vasplog = "error.out"):
     """
     Check the convergence status of a VASP calculation.
 
@@ -259,16 +278,21 @@ def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplo
     try:
         vr = Vasprun(filename=os.path.join(directory, filename_vasprun))
         return vr.converged
-    except FileNotFoundError:
+    except:
+        line_converged = "reached required accuracy - stopping structural energy minimisation"
         try:
-            line_converged = "reached required accuracy - stopping structural energy minimisation"
             converged = gen_tools.is_line_in_file(filepath=os.path.join(directory, filename_vasplog),
                                         line=line_converged,
                                         exact_match=False)
             return converged
-        except FileNotFoundError:
-            #raise FileNotFoundError("Neither vasprun.xml nor vasp.log found in the specified directory.")
-            return False
+        except:
+            try:
+                converged = gen_tools.is_line_in_file(filepath=os.path.join(directory, backup_vasplog),
+                            line=line_converged,
+                            exact_match=False)
+                return converged
+            except:
+                return False
 
 def element_count_ordered(structure):
     site_element_list = [site.species_string for site in structure]
