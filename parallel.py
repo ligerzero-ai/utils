@@ -1,11 +1,12 @@
 from multiprocessing import Pool, cpu_count
 
-def parallelise(func, *args_list, **kwargs_list):
+def parallelise(func, max_workers=None, *args_list, **kwargs_list):
     """
     Executes the given function in parallel by applying it to multiple sets of arguments.
 
     Args:
         func: The function to be executed in parallel.
+        max_workers: maximum number of processes to run in parallel
         *args_list: Variable-length argument list containing iterables, each representing a list of arguments
                     to be passed to the function. The function will be called for each set of arguments in parallel.
         **kwargs_list: Variable-length keyword argument list containing keyword arguments to be passed to the function.
@@ -28,8 +29,10 @@ def parallelise(func, *args_list, **kwargs_list):
     if len(args_list[0]) == 0:
         return None
     else:
-
-        num_processors = min(len(args_list[0]), cpu_count())
+        if max_workers:
+            num_processors = min(len(args_list[0]), max_workers)
+        else:
+            num_processors = min(len(args_list[0]), cpu_count())
         print(f"# Processes: {len(args_list[0])}\nProcessors available: {cpu_count()}\nCPUs used: {num_processors}")
 
         # Number of processes to run in parallel

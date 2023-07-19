@@ -191,8 +191,11 @@ def parse_VASP_directory(directory,
                                     filename_vasplog=vasplog_filename)
 
     # INCAR
-    incar = Incar.from_file(os.path.join(directory, INCAR_filename))
-
+    try:
+        incar = Incar.from_file(os.path.join(directory, INCAR_filename))
+    except:
+        incar = np.nan
+        
     try:
         # KPOINTS
         kpoints = Kpoints.from_file(os.path.join(directory, KPOINTS_filename))
@@ -203,18 +206,30 @@ def parse_VASP_directory(directory,
         except KeyError:
             kpoints = np.nan
 
-    element_list, element_count, electron_of_potcar = grab_electron_info(directory_path=directory,
-                                                                         potcar_filename=POTCAR_filename)
-    electron_count = get_total_electron_count(directory_path=directory)
-    df = read_OUTCAR(filename=os.path.join(directory, OUTCAR_filename))
-    
-    df["element_list"] = [element_list]
-    df["element_count"] = [element_count]
-    df["potcar_electron_count"] = [electron_of_potcar]
-    df["total_electron_count"] = [electron_count]
-    df["convergence"] = [convergence]
-    df["kpoints"] = [kpoints.to_json()]
-    df["incar"] = [incar.to_json()]
+    try:
+        element_list, element_count, electron_of_potcar = grab_electron_info(directory_path=directory,
+                                                                            potcar_filename=POTCAR_filename)
+    except:
+        element_list = np.nan
+        element_count = np.nan
+        electron_of_potcar = np.nan
+        df["element_list"] = [element_list]
+        df["element_count"] = [element_count]
+        df["potcar_electron_count"] = [electron_of_potcar]
+        df["total_electron_count"] = [electron_count]
+        df["convergence"] = [convergence]
+        df["kpoints"] = [kpoints.to_json()]
+        df["incar"] = [incar.to_json()]
+        
+    try:
+        electron_count = get_total_electron_count(directory_path=directory)
+    except:
+        
+    try:
+        df = read_OUTCAR(filename=os.path.join(directory, OUTCAR_filename))
+    except:
+        df = np.nan
+
 
     return df
 
@@ -288,6 +303,7 @@ def _try_read_structure(directory_path, structure_filenames = ["CONTCAR", ".vasp
             pass
         if structure == None:
             print(f"no structure found in {directory_path}")
+            structure = np.nan
     return structure
 
 def grab_electron_info(directory_path, line_before_elec_str="PAW_PBE", potcar_filename = "POTCAR"):
