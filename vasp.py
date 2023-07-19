@@ -427,7 +427,7 @@ class DatabaseGenerator():
         
         print("Elapsed time:", np.round(elapsed_time,3), "seconds")
 
-        return results
+        return df
     
 def calculation_collector(directory):
     start_time = time.time()
