@@ -211,8 +211,7 @@ def parse_VASP_directory(directory,
                     np.nan,
                     np.nan,
                     np.nan,
-                    np.nan,
-                    convergence,]],
+                    np.nan]],
             columns = ["job_name",
                         "filepath",
                         "structures",
@@ -221,8 +220,7 @@ def parse_VASP_directory(directory,
                         "forces",
                         "stresses",
                         "magmoms",
-                        "scf_steps",
-                        "convergence"])
+                        "scf_steps"])
         
     convergence = check_convergence(directory=directory,
                                     filename_vasprun=vasprunxml_filename,
@@ -388,10 +386,11 @@ class DatabaseGenerator():
         dirs = find_vasp_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories)
         
         if max_dir_count:
-            results = []
+            # This is far too expensive.. better to read 
+            # results = []
             for i, chunks in enumerate(gen_tools.chunk_list(dirs, max_dir_count)):
                 df = pd.concat(parallelise(parse_VASP_directory, chunks))
-                results.append(df)
+                # results.append(df)
                 if df_filename:
                     df.to_pickle(f"{i}_{df_filename}.pkl")
                 else:
