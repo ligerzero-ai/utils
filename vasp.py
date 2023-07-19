@@ -86,8 +86,28 @@ def read_OUTCAR(filename="OUTCAR"):
         outcar.from_file(filename = filename)
         print(f"Successful read of OUTCAR: {filename}")
     except:
+        df = pd.DataFrame([[np.nan,
+            directory,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            convergence,]],
+        columns = ["job_name",
+                    "filepath",
+                    "structures",
+                    "energy",
+                    "energy_zero",
+                    "forces",
+                    "stresses",
+                    "magmoms",
+                    "scf_steps",
+                    "convergence"])
         print(f"Error in OUTCAR read {filename}, exit")
-        return np.nan
+        return df
     
     structure_name = os.path.basename(os.path.dirname(filename))
     
