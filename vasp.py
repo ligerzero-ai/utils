@@ -218,11 +218,11 @@ def parse_VASP_directory(directory,
         # KPOINTS
         kpoints = Kpoints.from_file(os.path.join(directory, KPOINTS_filename))
         kpoints = kpoints.to_json()
-    except FileNotFoundError:
+    except:
         try:
             kspacing = incar["KSPACING"]
             kpoints = f"KSPACING: {kspacing}"
-        except KeyError:
+        except:
             kpoints = np.nan
 
     try:
