@@ -1,0 +1,81 @@
+#!/bin/bash
+#PBS -l walltime={WALLTIMESTRING}
+#PBS -l mem={MEMORYSTRING}
+#PBS -l ncpus={CPUSTRING}
+#PBS -l software=vasp
+#PBS -l wd
+#PBS -q normal
+#PBS -lstorage=scratch/v43
+cd "$PBS_O_WORKDIR"
+{VASPMODULELOADSTRING}
+run_cmd="mpirun vasp_std"
+
+cont_calc () {
+date_str=$(date +"%d-%m-%y_%H")
+if [ -f CONTCAR ]
+then
+    if [ -s CONTCAR ]
+    then
+        echo "CONTCAR exists and not empty: restarting from CONTCAR"
+	      cp POSCAR "$date_str-POSCAR"
+        cp CONTCAR POSCAR
+        $run_cmd &> vasp.log
+    else
+        echo "CONTCAR exists but is empty: restarting from POSCAR"
+        $run_cmd &> vasp.log
+    fi
+else
+    echo "CONTCAR does not exist: starting from POSCAR"
+    $run_cmd &> vasp.log
+fi
+}
+# job name is the folder name
+job_name=$(basename $PWD)
+# while counter
+i=0
+# The max iteration steps from INCAR file
+iteration_nsw=$(grep NSW INCAR | awk '{print $3}')
+# 
+date_str=$(date +"%d-%m-%y_%H")
+$run_cmd &> vasp.log
+# initiate the while loop max 6 iterations
+while [ $i -le {MAXCONVITERATIONS} ]; do
+i=$(( $i + 1 ))
+# Copy contcar to basename.vasp
+cp CONTCAR "$job_name.vasp"
+# date string 
+# Check for convergence
+if grep -q "reached required accuracy - stopping structural energy minimisation" vasp.log ; then
+	# Set counter to be greater than break condition
+	i=100
+	echo "$i : $job_name is converged"
+else
+	# Add one to the counter
+	iteration=$(grep Iter OUTCAR | tail -1 | awk '{ print $3 }' | sed 's/(.*//')
+	# If # ionic iteration loops is = max specified in INCAR
+	if [ $iteration == $iteration_nsw ]; then
+		cp POSCAR "POSCAR-$date_str-$i"
+		cp CONTCAR "CONTCAR-$date_str-$i"
+		cp vasp.log "vasp.log-$date_str-$i"
+		cp OUTCAR "OUTCAR-$date_str-$i"
+		cp CONTCAR POSCAR
+		cont_calc $job_name
+		echo "$i : $job_name ran out of iterations: restarting"
+	elif grep -q "fatal error in bracketing" vasp.log; then
+		cp POSCAR "POSCAR-$date_str-$i"
+		cp CONTCAR "CONTCAR-$date_str-$i"
+		cp vasp.log "vasp.log-$date_str-$i"
+		cp OUTCAR "OUTCAR-$date_str-$i"
+		cp CONTCAR POSCAR
+		cont_calc $job_name
+		echo "$i : $job_name experienced ZBRENT error, needs refinement: restarting..."
+	else
+		echo -e "$i : error: $job_name either crashed or some other error; check the old.vasp.log\!"
+		i=666
+	fi
+fi
+done
+# Copy contcar to basename.vasp
+cp CONTCAR "$job_name.vasp"
+# Cleanup the data so it doesn't flood the drive
+rm CHG CHGCAR PROCAR WAVECAR DOSCAR

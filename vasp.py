@@ -56,7 +56,10 @@ def find_vasp_directories(parent_dir,
 
     return directories
 
-def read_OUTCAR(filename="OUTCAR"):
+def read_OUTCAR(filename="OUTCAR",
+                free_energy=True,
+                energy_zero=True,
+                structures=True):
     """
     Read information from the OUTCAR file and related VASP structure files.
 
@@ -81,34 +84,9 @@ def read_OUTCAR(filename="OUTCAR"):
         - The parsed data is stored in a pandas DataFrame with columns for job name, file path, ionic step structures, energies, forces, stresses, magnetization moments, SCF step counts, and convergence.
         - If any part of the parsing encounters an error, the corresponding DataFrame entry will have NaN values.
     """
-    try:
-        outcar = Outcar()
-        outcar.from_file(filename = filename)
-        # print(f"Successful read of OUTCAR: {filename}")
-    except:
-        df = pd.DataFrame([[np.nan,
-            directory,
-            np.nan,
-            np.nan,
-            np.nan,
-            np.nan,
-            np.nan,
-            np.nan,
-            np.nan,
-            convergence,]],
-        columns = ["job_name",
-                    "filepath",
-                    "structures",
-                    "energy",
-                    "energy_zero",
-                    "forces",
-                    "stresses",
-                    "magmoms",
-                    "scf_steps",
-                    "convergence"])
-        # print(f"Error in OUTCAR read {filename}, exit")
-        return df
-    
+    outcar = Outcar()
+    outcar.from_file(filename = filename)
+
     structure_name = os.path.basename(os.path.dirname(filename))
     
     try:
@@ -227,15 +205,13 @@ def parse_VASP_directory(directory,
                                     filename_vasplog=vasplog_filename)    
     # INCAR
     try:
-        incar = Incar.from_file(os.path.join(directory, INCAR_filename))
-        incar = incar.to_json()
+        incar = Incar.from_file(os.path.join(directory, INCAR_filename)).as_dict()
     except:
         incar = np.nan
         
     try:
         # KPOINTS
-        kpoints = Kpoints.from_file(os.path.join(directory, KPOINTS_filename))
-        kpoints = kpoints.to_json()
+        kpoints = Kpoints.from_file(os.path.join(directory, KPOINTS_filename)).as_dict()
     except:
         try:
             kspacing = incar["KSPACING"]
@@ -257,8 +233,6 @@ def parse_VASP_directory(directory,
     except:
         electron_count = np.nan
         
-
-    
     df["element_list"] = [element_list]
     df["element_count"] = [element_count]
     df["potcar_electron_count"] = [electron_of_potcar]
@@ -428,41 +402,3 @@ class DatabaseGenerator():
         print("Elapsed time:", np.round(elapsed_time,3), "seconds")
 
         return df
-    
-def calculation_collector(directory):
-    start_time = time.time()
-
-            
-
-#     filepaths = []
-#     for subdir, dirs, files in os.walk(sys.argv[1]):
-#         for file in files:
-#             if "OUTCAR" not in file:
-#                 continue
-#             filepaths.append(os.path.join(f"{subdir}", file))
-
-#     import multiprocessing
-
-
-#     num_processors = multiprocessing.cpu_count()
-#     if len(filepaths) < num_processors:
-#         processes = len(filepaths)
-#     else:
-#         processes = num_processors    
-#     print(f"Number of processors: {num_processors}, used: {processes}")
-
-
-#     with multiprocessing.Pool(processes=processes) as pool:
-#         results = pool.map(read_OUTCAR, filepaths)
-
-#     if len(sys.argv) > 1:
-#         pickle_name = sys.argv[1].rstrip(os.sep)
-#     else:
-#         pickle_name = "scraped_df"
-#     print(pickle_name)
-#     results_df.to_pickle(f"{pickle_name}.pkl")
-
-#     end_time = time.time()
-#     elapsed_time = end_time - start_time
-
-#     print("Elapsed time:", np.round(elapsed_time,3), "seconds")
