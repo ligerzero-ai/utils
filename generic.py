@@ -246,9 +246,9 @@ def extract_files_from_tarball(tarball_filepath, filenames, suffix=None, prefix=
         - The function returns a list of the extracted filepaths.
     """
     with tarfile.open(tarball_filepath, "r:gz") as tar:
-        try:
-            extracted_filepaths = []
-            for filename in filenames:
+        extracted_filepaths = []
+        for filename in filenames:
+            try:
                 matching_names = [name for name in tar.getnames() if name.endswith(filename)]
                 for name in matching_names:
                     tar.extract(name, path=os.path.dirname(tarball_filepath))
@@ -265,8 +265,8 @@ def extract_files_from_tarball(tarball_filepath, filenames, suffix=None, prefix=
                         os.rename(extracted_filepath, new_path)
                         extracted_filepath = new_path
                     extracted_filepaths.append(extracted_filepath)
-        except:
-            extracted_filepaths=[]
+            except:
+                a = 0
 
     return extracted_filepaths
 
