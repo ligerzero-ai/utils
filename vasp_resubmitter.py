@@ -44,6 +44,7 @@ class CalculationConverger():
         dirs_to_apply_reconverge -= set(running_queued_job_directories)
         
         for dir in dirs_to_apply_reconverge:
+            print(dir)
             converged = check_convergence(dir)
             if not converged:
                 non_converged.append(dir)
