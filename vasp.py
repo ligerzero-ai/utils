@@ -4,6 +4,11 @@ import time
 import tarfile
 import re
 
+from collections import OrderedDict
+import warnings
+import scipy.constants
+import re
+
 from pymatgen.core import Structure
 # from pyiron_atomistics.vasp.outcar import Outcar
 from pymatgen.io.vasp import Vasprun, Kpoints, Incar, Potcar
@@ -403,15 +408,61 @@ class DatabaseGenerator():
 
         return df
     
+import os
+import shutil
+import tarfile
+
+
+class CalculationConverger():
+    
+    def __init__(self, parent_dir):
+        self.parent_dir = parent_dir
+    
+    def reconverge(self, batch_system="sbatch", script_template_dir = os.getcwd(), max_submissions = 1000):
+        vasp_dirs = find_vasp_directories(self.parent_dir)
+        non_converged_dirs = []
+        
+        for dir in vasp_dirs:
+            converged = check_convergence(dir)
+            
+            leftover_calcs = []
+            
+            if not converged:
+                
+                relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dir))
+                relax1_files_exist = any(f.endswith(".relax_1") for f in os.listdir(dir))
+                
+                # Check if .relax_1 and .relax2 files exist and use the static relaxation script
+                if relax2_files_exist:
+                    script_name = os.path.join(script_template_dir, "CustodianStatic.sh")  # Replace with the name of the script for both cases
+                elif relax1_files_exist:
+                    script_name = os.path.join(script_template_dir, "CustodianContinue_SecondRelax.sh")  # Replace with the name of the script for .relax_1 case
+                else:
+                    script_name = os.path.join(script_template_dir, "CustodianDoubleRelaxation.sh")
+                
+                target_script_name = f"{os.path.basename(dir).sh}" 
+                
+                shutil.copy(script_name, os.path.join(dir, target_script_name))
+                
+                non_converged_dirs.append(dir)
+                if len(non_converged_dirs) > max_submissions:
+                    
+                    continue 
+                if batch_system == "sbatch":
+                    os.system(f"cd {dir} && sbatch {script_name}")  # Submit using sbatch
+                elif batch_system == "qsub":
+                    os.system(f"cd {dir} && qsub {script_name}")  # Submit using qsub
+                else:
+                    print("Invalid batch_system argument. Please provide 'sbatch' or 'qsub'.")
+                    return
+                
+        return non_converged_dirs
+
+
 # coding: utf-8
 # Copyright (c) Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department
 # Distributed under the terms of "New BSD License", see the LICENSE file.
 
-from collections import OrderedDict
-import numpy as np
-import warnings
-import scipy.constants
-import re
 
 KBAR_TO_EVA = (
     scipy.constants.physical_constants["joule-electron volt relationship"][0] / 1e22
