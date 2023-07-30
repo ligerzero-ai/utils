@@ -51,7 +51,7 @@ class CalculationConverger():
                 if len(non_converged) > self.max_submissions:
                     leftover_calcs_exceeding_queue_limit.append(dir)
                 else:
-                    self.reconverge(dir, self.script_template_dir)
+                    self.reconverge(dir)
                 dirs_to_search_next_time.append(dir)
         
         dirs_to_search_next_time += running_queued_job_directories
