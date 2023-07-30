@@ -34,7 +34,7 @@ class CalculationConverger():
         
     def reconverge_all(self):
         non_converged = self.reconverge_from_log_file()
-        running_jobs_df = get_slurm_jobs_working_directories(self.username)
+        running_jobs_df = get_slurm_jobs_working_directories(self.user)
         running_queued_job_directories = running_jobs_df["Working Directory"].to_list()
         
         dirs_to_search_next_time = []
