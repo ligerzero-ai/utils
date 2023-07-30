@@ -43,12 +43,12 @@ class CalculationConverger():
         dirs_to_apply_reconverge = set(non_converged) if non_converged else set(self.vasp_dirs)
         dirs_to_apply_reconverge -= set(running_queued_job_directories)
         
-        for dir in dirs_to_apply_reconverge:
+        for i, dir in enumerate(dirs_to_apply_reconverge):
             print(dir)
             converged = check_convergence(dir)
             if not converged:
                 non_converged.append(dir)
-                if len(non_converged) + len(running_queued_job_directories) > self.max_submissions:
+                if i + len(running_queued_job_directories) > self.max_submissions:
                     leftover_calcs_exceeding_queue_limit.append(dir)
                 else:
                     self.reconverge(dir)
