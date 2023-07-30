@@ -42,17 +42,20 @@ class CalculationConverger():
         # Exclude the running job directories from dirs_to_search
         dirs_to_apply_reconverge = set(non_converged) if non_converged else set(self.vasp_dirs)
         dirs_to_apply_reconverge -= set(running_queued_job_directories)
+        dirs_to_apply_reconverge = list(set(dirs_to_apply_reconverge))
         
         for i, dir in enumerate(dirs_to_apply_reconverge):
-            print(dir)
             converged = check_convergence(dir)
             if not converged:
+                print(f"UNCONVERGED: {dir}")
                 non_converged.append(dir)
                 if i + len(running_queued_job_directories) > self.max_submissions:
                     leftover_calcs_exceeding_queue_limit.append(dir)
                 else:
                     self.reconverge(dir)
                 dirs_to_search_next_time.append(dir)
+            else:
+                print(f"CONVERGED: {dir}")
         
         dirs_to_search_next_time += running_queued_job_directories
         dirs_to_search_next_time += leftover_calcs_exceeding_queue_limit
