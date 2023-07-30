@@ -86,21 +86,26 @@ class CalculationConverger():
         
     def _get_latest_file_iteration(self, resubmit_log_filename = "resubmit.log_"):
         # Check for existing resubmit.log_m files and find the largest m
-        for filename in os.listdir():
-            if filename.startswith(resubmit_log_filename):
-                num_str = filename.split(sep=resubmit_log_filename)[-1]
-                try:
-                    num = int(num_str)
-                    largest_n = max(largest_n, num)
-                except ValueError:
-                    largest_n = -1
-                    return largest_n
-        return largest_n
+        resubmit_log_files = []
+        for filename in os.listdir(self.parent_dir):
+            if resubmit_log_filename in filename:
+                resubmit_log_files.append(filename)
+        max_integer = -1
+        if not resubmit_log_files:
+            return -1
+        else:
+            for log_file in resubmit_log_files:
+                if log_file.startswith(resubmit_log_filename):
+                    try:
+                        num_str = log_file[len(resubmit_log_filename):]
+                        num = int(num_str)
+                        max_integer = max(max_integer, num)
+                    except ValueError:
+                        pass  # Ignore non-integer parts after "resubmit.log_"
+            return max_integer
                 
     def reconverge_from_log_file(self):
-        resubmit_log_file = os.path.join(self.parent_dir, "resubmit.log")
-        largest_n = -1
-        
+        resubmit_log_file = os.path.join(self.parent_dir, "resubmit.log")        
         if os.path.isfile(resubmit_log_file):
             # Submit jobs from the resubmit_log_file
             with open(resubmit_log_file, "r") as log_file:
