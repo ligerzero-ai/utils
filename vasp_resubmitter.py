@@ -33,7 +33,7 @@ class CalculationConverger():
         os.system(f"cd {dirpath} && {self.submission_command} {script_name}")
         
     def reconverge_all(self):
-        non_converged = self.reconverge_from_log_file(self)
+        non_converged = self.reconverge_from_log_file()
         running_jobs_df = get_slurm_jobs_working_directories(self.username)
         running_queued_job_directories = running_jobs_df["Working Directory"].to_list()
         
