@@ -93,7 +93,8 @@ class CalculationConverger():
                     num = int(num_str)
                     largest_n = max(largest_n, num)
                 except ValueError:
-                    pass  # Ignore non-integer filenames like "resubmit_log.txt"
+                    largest_n = -1
+                    return largest_n
         return largest_n
                 
     def reconverge_from_log_file(self):
