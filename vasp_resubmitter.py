@@ -48,7 +48,7 @@ class CalculationConverger():
             converged = check_convergence(dir)
             if not converged:
                 non_converged.append(dir)
-                if len(non_converged) > self.max_submissions:
+                if len(non_converged) + len(running_queued_job_directories) > self.max_submissions:
                     leftover_calcs_exceeding_queue_limit.append(dir)
                 else:
                     self.reconverge(dir)
