@@ -25,7 +25,7 @@ class CalculationConverger():
         self.parent_dir = parent_dir
         self.max_submissions = max_submissions
         self.submission_command = submission_command
-        self.vasp_dirs = find_vasp_directories(parent_dir)
+        self.vasp_dirs = find_vasp_directories(parent_dir, extract_tarballs=False)
         self.script_template_dir = script_template_dir
         self.user = username
 
