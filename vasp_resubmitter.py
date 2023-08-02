@@ -53,7 +53,7 @@ class CalculationConverger():
                     leftover_calcs_exceeding_queue_limit.append(dir)
                 else:
                     self.reconverge(dir)
-                dirs_to_search_next_time.append(dir)
+                    dirs_to_search_next_time.append(dir)
             else:
                 print(f"CONVERGED: {dir}")
         
@@ -116,7 +116,7 @@ class CalculationConverger():
             
             largest_n = self._get_latest_file_iteration()
             # Rename the existing resubmit.log to resubmit.log_n
-            new_log_filename = f"resubmit_log_{largest_n + 1}.txt"
+            new_log_filename = f"resubmit.log_{largest_n + 1}"
             os.rename(resubmit_log_file, new_log_filename)
             
             return non_converged_dirs
