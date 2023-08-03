@@ -342,7 +342,8 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
                                                   extension=".tar.gz",
                                                   filenames=[],
                                                   suffix=False,
-                                                  prefix=False):
+                                                  prefix=False,
+                                                  exclude_containing=["error."]):
     """
     Finds and extracts specific files from multiple tarball files within a parent directory using parallel processing.
 
@@ -354,6 +355,7 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
                                            Defaults to an empty list, which means all files will be extracted.
         suffix (bool, optional): Determines whether to append suffixes to the extracted filenames. Defaults to False.
         prefix (bool, optional): Determines whether to prepend prefixes to the extracted filenames. Defaults to False.
+        exclude_containing (list, optional): A list of strings. Tarballs whose names contain any of these strings will be excluded from extraction.
 
     Usage:
         # Extract all files from .tar.gz files within a parent directory in parallel
@@ -362,13 +364,21 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
         # Extract specific files from .tar.gz files within a parent directory in parallel, with suffixes appended
         find_and_extract_files_from_tarballs_parallel("/path/to/parent_directory", filenames=["file1.txt", "file2.jpg"], suffix=True)
 
+        # Exclude tarballs with names containing "error." or "corrupted." from extraction
+        find_and_extract_files_from_tarballs_parallel("/path/to/parent_directory", exclude_containing=["error.", "corrupted."])
+
     Note:
         - The function searches for tarball files within the specified `parent_dir` using the provided `extension`.
         - It finds and extracts specific `filenames` from the tarball files, either all files or the specified files.
         - If `suffix` is True, the extracted filenames will be appended with suffixes.
         - The extraction process is parallelized using the `parallelise()` function and the `extract_files_from_tarball` function.
+        - Tarballs whose names contain any of the strings in `exclude_containing` will be skipped during extraction.
     """
     filepaths = find_exts(top=parent_dir, exts=(extension))
+
+    # Filter out tarballs that contain any of the strings in exclude_containing
+    filepaths = [filepath for filepath in filepaths if not any(exclude in os.path.basename(filepath) for exclude in exclude_containing)]
+
     filenames = [filenames]*len(filepaths)
     if suffix:
         # Really ugly so this only works with .tar.gz files for now
@@ -382,7 +392,7 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
     else:
         prefixes = [None for _ in filepaths]        
     parallelise(extract_files_from_tarball, filepaths, filenames, suffixes, prefixes)
-    
+
 def compress_directory(directory_path,
                        exclude_files = [],
                        exclude_file_patterns = [],

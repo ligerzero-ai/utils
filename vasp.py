@@ -273,6 +273,7 @@ def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplo
         ...     print("Calculation has not converged.")
     """
     try:
+        print("trying vasprun branch convergence")
         vr = Vasprun(filename=os.path.join(directory, filename_vasprun))
         return vr.converged
     except:
@@ -353,6 +354,32 @@ def get_total_electron_count(directory_path, line_before_elec_str="PAW_PBE", pot
     total_electron_count = np.dot(ele_count, electron_of_potcar)
     return total_electron_count
 
+def _check_convergence(directory):
+    return directory, check_convergence(directory)
+
+def find_converged_dirs(parent_dir):
+
+    dirs = find_vasp_directories(parent_dir=parent_dir, extract_tarballs=False)
+    # Filter the directories where convergence is True
+    dir_and_convergence = parallelise(_check_convergence, dirs)
+    
+    converged_dirs = [directory for directory, convergence in dir_and_convergence if convergence]
+    return converged_dirs
+
+class BackupData():
+    def __init__(self, parent_dir):
+        self.parent_dir = parent_dir
+    
+    def backup_converged_dirs(self,
+                              backup_directory,
+                              compress_backup_parent_dir = False,
+                              remove_from_original_dir = False):
+        converged_dirs = find_converged_dirs(self.parent_dir)
+        
+        converged_dirs = []
+        shutil.copy
+        gen_tools.compress_directory_parallel()
+
 class DatabaseGenerator():
     
     def __init__(self, parent_dir):
@@ -428,7 +455,7 @@ class DatabaseGenerator():
                     max_dir_count = None,
                     df_filename = None):
         
-        update_df = self.build_database(target_directory = existing_database_filename
+        update_df = self.build_database(target_directory = existing_database_filename,
                                         extract_directories = extract_directories,
                                         cleanup=cleanup,
                                         keep_filenames_after_cleanup = keep_filenames_after_cleanup,
