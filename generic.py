@@ -29,6 +29,28 @@ def chunk_list(lst, n):
     """
     return [lst[i:i + n] for i in range(0, len(lst), n)]
 
+def get_latest_file_iteration(directory, filename_with_iteration):
+    # Check for existing resubmit.log_m files and find the largest m
+    resubmit_log_files = []
+    for filename in os.listdir(directory):
+        if filename_with_iteration in filename:
+            resubmit_log_files.append(filename)
+            
+    max_integer = -1
+    
+    if not resubmit_log_files:
+        return -1
+    else:
+        for log_file in resubmit_log_files:
+            if log_file.startswith(filename_with_iteration):
+                try:
+                    num_str = log_file[len(filename_with_iteration):]
+                    num = int(num_str)
+                    max_integer = max(max_integer, num)
+                except ValueError:
+                    pass  # Ignore non-integer parts after "resubmit.log_"
+        return max_integer
+    
 def search_line_in_file(filename, line_to_search, search_depth=None, reverse=True):
     """
     Searches for a specific line in a file.

@@ -5,6 +5,7 @@ import subprocess
 import pandas as pd
 
 from utils.vasp import find_vasp_directories, check_convergence
+from utils.generic import get_latest_file_iteration
 
 def get_slurm_jobs_working_directories(username="hmai"):
     command = f"squeue -u {username} -o \"%i %Z\""
@@ -86,26 +87,26 @@ class CalculationConverger():
         shutil.copy(script_name, os.path.join(dirpath, target_script_name))
     
         self.submit_to_queue(dirpath, target_script_name)
-        
-    def _get_latest_file_iteration(self, resubmit_log_filename = "resubmit.log_"):
-        # Check for existing resubmit.log_m files and find the largest m
-        resubmit_log_files = []
-        for filename in os.listdir(self.parent_dir):
-            if resubmit_log_filename in filename:
-                resubmit_log_files.append(filename)
-        max_integer = -1
-        if not resubmit_log_files:
-            return -1
-        else:
-            for log_file in resubmit_log_files:
-                if log_file.startswith(resubmit_log_filename):
-                    try:
-                        num_str = log_file[len(resubmit_log_filename):]
-                        num = int(num_str)
-                        max_integer = max(max_integer, num)
-                    except ValueError:
-                        pass  # Ignore non-integer parts after "resubmit.log_"
-            return max_integer
+    
+    # def _get_latest_file_iteration(self, resubmit_log_filename = "resubmit.log_"):
+    #     # Check for existing resubmit.log_m files and find the largest m
+    #     resubmit_log_files = []
+    #     for filename in os.listdir(self.parent_dir):
+    #         if resubmit_log_filename in filename:
+    #             resubmit_log_files.append(filename)
+    #     max_integer = -1
+    #     if not resubmit_log_files:
+    #         return -1
+    #     else:
+    #         for log_file in resubmit_log_files:
+    #             if log_file.startswith(resubmit_log_filename):
+    #                 try:
+    #                     num_str = log_file[len(resubmit_log_filename):]
+    #                     num = int(num_str)
+    #                     max_integer = max(max_integer, num)
+    #                 except ValueError:
+    #                     pass  # Ignore non-integer parts after "resubmit.log_"
+    #         return max_integer
                 
     def reconverge_from_log_file(self):
         resubmit_log_file = os.path.join(self.parent_dir, "resubmit.log")        
@@ -114,7 +115,7 @@ class CalculationConverger():
             with open(resubmit_log_file, "r") as log_file:
                 non_converged_dirs = [line.strip() for line in log_file.readlines()]
             
-            largest_n = self._get_latest_file_iteration()
+            largest_n = get_latest_file_iteration(self.parent_dir, "resubmit.log_")
             # Rename the existing resubmit.log to resubmit.log_n
             new_log_filename = f"resubmit.log_{largest_n + 1}"
             os.rename(resubmit_log_file, new_log_filename)

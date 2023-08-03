@@ -358,11 +358,21 @@ class DatabaseGenerator():
     def __init__(self, parent_dir):
         self.parent_dir = parent_dir
         
-    def build_database(self, extract_directories = True, cleanup=False, keep_filenames_after_cleanup = [], keep_filename_patterns_after_cleanup = [], max_dir_count = None, df_filename = None):
+    def build_database(self,
+                       target_directory = None,
+                       extract_directories = False,
+                       cleanup=False,
+                       keep_filenames_after_cleanup = [],
+                       keep_filename_patterns_after_cleanup = [],
+                       max_dir_count = None,
+                       df_filename = None):
         
         start_time = time.time()
         
-        dirs = find_vasp_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories)
+        if target_directory:
+            dirs = find_vasp_directories(parent_dir=target_directory, extract_tarballs=extract_directories)
+        else:
+            dirs = find_vasp_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories)
         
         print(f"The total number of vasp directories that we are building the database out of is {len(dirs)}")
         
@@ -407,6 +417,45 @@ class DatabaseGenerator():
         print("Elapsed time:", np.round(elapsed_time,3), "seconds")
 
         return df
+    
+    def update_database(self,
+                    new_calculation_directory,
+                    existing_database_filename = "vasp_database.pkl",
+                    extract_directories = True,
+                    cleanup=False,
+                    keep_filenames_after_cleanup = [],
+                    keep_filename_patterns_after_cleanup = [],
+                    max_dir_count = None,
+                    df_filename = None):
+        
+        update_df = self.build_database(target_directory = existing_database_filename
+                                        extract_directories = extract_directories,
+                                        cleanup=cleanup,
+                                        keep_filenames_after_cleanup = keep_filenames_after_cleanup,
+                                        keep_filename_patterns_after_cleanup = keep_filename_patterns_after_cleanup,
+                                        max_dir_count = max_dir_count,
+                                        df_filename = df_filename)
+        def _get_job_dir(filepath):
+            return os.path.basename(filepath.rstrip("/OUTCAR"))
+        
+        update_df["job_dir"] = [_get_job_dir(row.filepath) for _, row in update_df.iterrows()]
+        base_df["job_dir"] = [_get_job_dir(row.filepath) for _, row in base_df.iterrows()]
+
+        base_df = pd.read_pickle(existing_database_filename)
+        
+        # Merge df1 and df2 based on the common dirname
+        interm_df = base_df.merge(update_df, on='job_dir', suffixes=('_df1', '_df2'), how='left')
+
+        # Loop through the columns and update them dynamically
+        for column in base_df.columns:
+            if column not in ('filepath', 'job_dir'):
+                # Check if the column with suffix '_df2' exists
+                if (f'{column}_df2' in interm_df.columns):
+                    base_df[column].update(interm_df[column + '_df2'].combine_first(interm_df[column + '_df1']))
+                    
+        base_df.drop(columns=['job_dir'], inplace=True)
+        
+        return base_df
     
 # coding: utf-8
 # Copyright (c) Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department
