@@ -6,99 +6,144 @@ from pymatgen.core import Structure, Element
 import pandas as pd
 import numpy as np
 
-from utils.generic import parse_lines, search_line_in_file, find_directories_with_files
+from utils.generic import parse_lines, search_line_in_file, find_directories_with_files, extract_files_from_tarball
 
 import matplotlib.pyplot as plt
 
+class ChargemolAnalysis():
+    def __init__(self, directory, extract_dir = False):
+        self.directory = directory
+        self._struct = None
+        self._bond_matrix = None
+        if extract_dir:
+            extract_chargemol_files(directory)
+        self.parse_DDEC6_analysis_output()
+        
+    def parse_DDEC6_analysis_output(self):
+        struct, bond_matrix = parse_DDEC6_analysis_output(os.path.join(self.directory, "VASP_DDEC_analysis.output"))
+        self.struct = struct
+        self.bond_matrix = bond_matrix
+        return struct, bond_matrix
+
+    # Getter for struct attribute
+    def get_struct(self):
+        return self._struct
+
+    # Setter for struct attribute
+    def set_struct(self, struct):
+        self._struct = struct
+
+    # Getter for bond_matrix attribute
+    def get_bond_matrix(self):
+        return self._bond_matrix
+
+    # Setter for bond_matrix attribute
+    def set_bond_matrix(self, bond_matrix):
+        self._bond_matrix = bond_matrix
+
+    def plot_ANSBO_profile(self):
+        plot_ANSBO_profile_and_structure(self.struct, self.bond_matrix)
+        
+    def get_ANSBO_profile(self, axis=2, tolerance=0.1):
+        return get_ANSBO_all_cleavage_planes(self.struct, self.bond_matrix, axis=axis, tolerance=tolerance)
+
+    def get_min_ANSBO(self, axis=2, tolerance=0.1):
+        return min(get_ANSBO_all_cleavage_planes(self.struct, self.bond_matrix, axis=axis, tolerance=tolerance))
+    
+    def get_min
+
+def extract_chargemol_files(directory):
+    extract_files_from_tarball()
+
 def parse_DDEC6_analysis_output(filename):
-  """
-  Parses VASP_DDEC_analysis.output files and returns a Structure object and bond matrix.
+    """
+    Parses VASP_DDEC_analysis.output files and returns a Structure object and bond matrix.
 
-  Args:
-      filepaths (str or list): The path(s) to the DDEC6 output file(s) to be parsed.
+    Args:
+        filepaths (str or list): The path(s) to the DDEC6 output file(s) to be parsed.
 
-  Returns:
-      tuple: A tuple containing the Structure object and bond matrix.
-          - The Structure object represents the atomic structure of the system
+    Returns:
+        tuple: A tuple containing the Structure object and bond matrix.
+            - The Structure object represents the atomic structure of the system
             and contains information about the lattice, atomic coordinates,
             and atomic numbers.
-          - The bond matrix is a DataFrame that provides information about the
+            - The bond matrix is a DataFrame that provides information about the
             bonding interactions in the system, including bond indices, bond lengths,
             and other properties.
 
-  Raises:
-      FileNotFoundError: If the specified file(s) do not exist.
+    Raises:
+        FileNotFoundError: If the specified file(s) do not exist.
 
-  Example:
-      filepaths = ["output1.txt", "output2.txt"]
-      structure, bond_matrix = parse_DDEC6(filepaths)
-      print(structure)
-      print(bond_matrix)
+    Example:
+        filepaths = ["output1.txt", "output2.txt"]
+        structure, bond_matrix = parse_DDEC6(filepaths)
+        print(structure)
+        print(bond_matrix)
 
-  Note:
-      - The function reads the specified DDEC6 output file(s) and extracts relevant
+    Note:
+        - The function reads the specified DDEC6 output file(s) and extracts relevant
         information to create a Structure object and bond matrix.
-      - The function expects the DDEC6 output files to be in a specific format and
+        - The function expects the DDEC6 output files to be in a specific format and
         relies on certain trigger lines to identify the relevant sections.
-      - The structure lattice is parsed from the lines between the "vectors" and
+        - The structure lattice is parsed from the lines between the "vectors" and
         "direct_coords" triggers.
-      - The atomic fractional coordinates are parsed from the lines between the
+        - The atomic fractional coordinates are parsed from the lines between the
         "direct_coords" and "totnumA" triggers.
-      - The atomic numbers are parsed from the lines between the "(Missing core
+        - The atomic numbers are parsed from the lines between the "(Missing core
         electrons will be inserted using stored core electron reference densities.)"
         and "Finished the check for missing core electrons." triggers.
-      - The atomic numbers are converted to element symbols using the pymatgen
+        - The atomic numbers are converted to element symbols using the pymatgen
         Element.from_Z() method.
-      - The Structure object is created using the parsed lattice, atomic numbers,
+        - The Structure object is created using the parsed lattice, atomic numbers,
         and fractional coordinates.
-      - The bond matrix is parsed from the lines between the "The final bond pair
+        - The bond matrix is parsed from the lines between the "The final bond pair
         matrix is" and "The legend for the bond pair matrix follows:" triggers.
-      - The bond matrix is returned as a pandas DataFrame with the specified column
+        - The bond matrix is returned as a pandas DataFrame with the specified column
         names.
 
-  """
-  flist = open(filename).readlines()
-  
-  bohr_to_angstrom_conversion_factor = 0.529177
-  structure_lattice = parse_lines(flist, trigger_start="vectors", trigger_end="direct_coords")[0]
-  structure_lattice = np.array([list(map(float, line.split())) for line in structure_lattice])
-  structure_lattice = structure_lattice * bohr_to_angstrom_conversion_factor
-  
-  structure_frac_coords = parse_lines(flist, trigger_start="direct_coords", trigger_end="totnumA")[0]
-  structure_frac_coords = [np.array([float(coord) for coord in entry.split()]) for entry in structure_frac_coords]
-  
-  # Convert atomic numbers to element symbols
-  structure_atomic_no = parse_lines(flist, trigger_start="(Missing core electrons will be inserted using stored core electron reference densities.)", trigger_end=" Finished the check for missing core electrons.")
-  structure_atomic_no = [Element.from_Z(int(atomic_number.split()[1])).symbol for atomic_number in structure_atomic_no[0]]
-  
-  structure = Structure(structure_lattice, structure_atomic_no, structure_frac_coords)
+    """
+    flist = open(filename).readlines()
 
-  data_column_names = ['atom1',\
-              'atom2',\
-              'repeata',\
-              'repeatb',\
-              'repeatc',\
-              'min-na',\
-              'max-na',\
-              'min-nb',\
-              'max-nb',\
-              'min-nc',\
-              'max-nc',\
-              'contact-exchange',\
-              'avg-spin-pol-bonding-term',\
-              'overlap-population',\
-              'isoaepfcbo',\
-              'coord-term-tanh',\
-              'pairwise-term',\
-              'exp-term-comb-coord-pairwise',\
-              'bond-idx-before-self-exch',\
-              'final_bond_order']
+    bohr_to_angstrom_conversion_factor = 0.529177
+    structure_lattice = parse_lines(flist, trigger_start="vectors", trigger_end="direct_coords")[0]
+    structure_lattice = np.array([list(map(float, line.split())) for line in structure_lattice])
+    structure_lattice = structure_lattice * bohr_to_angstrom_conversion_factor
 
-  bond_matrix = parse_lines(flist, trigger_start="The final bond pair matrix is", trigger_end="The legend for the bond pair matrix follows:")[0]
-  bond_matrix = np.array([list(map(float, line.split())) for line in bond_matrix])
-  bond_matrix = pd.DataFrame(bond_matrix, columns=data_column_names)
-  
-  return structure, bond_matrix
+    structure_frac_coords = parse_lines(flist, trigger_start="direct_coords", trigger_end="totnumA")[0]
+    structure_frac_coords = [np.array([float(coord) for coord in entry.split()]) for entry in structure_frac_coords]
+
+    # Convert atomic numbers to element symbols
+    structure_atomic_no = parse_lines(flist, trigger_start="(Missing core electrons will be inserted using stored core electron reference densities.)", trigger_end=" Finished the check for missing core electrons.")
+    structure_atomic_no = [Element.from_Z(int(atomic_number.split()[1])).symbol for atomic_number in structure_atomic_no[0]]
+
+    structure = Structure(structure_lattice, structure_atomic_no, structure_frac_coords)
+
+    data_column_names = ['atom1',\
+                'atom2',\
+                'repeata',\
+                'repeatb',\
+                'repeatc',\
+                'min-na',\
+                'max-na',\
+                'min-nb',\
+                'max-nb',\
+                'min-nc',\
+                'max-nc',\
+                'contact-exchange',\
+                'avg-spin-pol-bonding-term',\
+                'overlap-population',\
+                'isoaepfcbo',\
+                'coord-term-tanh',\
+                'pairwise-term',\
+                'exp-term-comb-coord-pairwise',\
+                'bond-idx-before-self-exch',\
+                'final_bond_order']
+
+    bond_matrix = parse_lines(flist, trigger_start="The final bond pair matrix is", trigger_end="The legend for the bond pair matrix follows:")[0]
+    bond_matrix = np.array([list(map(float, line.split())) for line in bond_matrix])
+    bond_matrix = pd.DataFrame(bond_matrix, columns=data_column_names)
+
+    return structure, bond_matrix
 
 def check_valid_chargemol_output(vasp_ddec_analysis_output_filepath):
     """
@@ -177,42 +222,6 @@ def find_chargemol_dirs(filepath):
             non_converged_list.append(file)
     
     return converged_list, non_converged_list
-    
-def run_scrape(filepath):
-    """
-    Run the Chargemol scraping process on the specified filepath.
-
-    Args:
-        filepath (str): The path to the directory to run the Chargemol scraping process on.
-
-    Returns:
-        tuple: A tuple containing two elements:
-            - The first element is a list of filepaths to directories with successful Chargemol completion.
-            - The second element is the result of parsing the Chargemol output files.
-
-    Example:
-        directory_path = "/path/to/directory"
-        filepaths, results = run_scrape(directory_path)
-        print("Filepaths with successful Chargemol completion:")
-        for filepath in filepaths:
-            print(filepath)
-        print("Parsing results:")
-        print(results)
-
-    Notes:
-        - The function runs the Chargemol scraping process on the specified filepath.
-        - It first calls the `find_chargemol_dirs` function to find directories with Chargemol output files,
-          separating them into filepaths with successful completion and non-converged filepaths.
-        - The successful completion filepaths are then passed to the `parse_DDEC6` function to parse the Chargemol output files.
-        - The parsing results are returned along with the filepaths.
-
-    """
-    filepaths, non_converged_filepaths = find_chargemol_dirs(filepath)
-    results = parse_DDEC6_analysis_output(filepaths)
-    # Pad the results with None if the lengths don't match
-    max_length = len(filepaths+non_converged_filepaths)
-    results += [None] * (max_length - len(results))
-    return filepaths, results
 
 def plot_structure_projection(structure,
                               projection_axis = [1, 2], 
@@ -259,12 +268,6 @@ def plot_structure_projection(structure,
         for idx, bonds in relevant_plot_bonds.iterrows():        
             atom1 = int(bonds["atom1"])-1
             atom2 = int(bonds["atom2"])-1
-            x1 = structure[atom1].coords[0]
-            y1 = structure[atom1].coords[1]
-            z1 = structure[atom1].coords[2]
-            x2 = structure[atom2].coords[0]
-            y2 = structure[atom2].coords[1]
-            z2 = structure[atom2].coords[2]
             bondstrength = np.round(bonds["final_bond_order"],2)
             if bondstrength < 0.28:
                 c = 'r'
@@ -291,3 +294,144 @@ def plot_structure_projection(structure,
     plt.gca().add_patch(rect)
     plt.gca().set_aspect('equal')
     plt.grid()
+    
+def get_unique_values_in_nth_value(arr_list, n, tolerance):
+    unique_values = []
+    for sublist in arr_list:
+        value = sublist[n]
+        is_unique = True
+        for unique_value in unique_values:
+            if np.allclose(value, unique_value, atol=tolerance):
+                is_unique = False
+                break
+        if is_unique:
+            unique_values.append(value)
+    return unique_values
+
+def compute_average_pairs(lst):
+    averages = []
+    for i in range(len(lst) - 1):
+        average = (lst[i] + lst[i + 1]) / 2
+        averages.append(average)
+    return averages
+
+def get_ANSBO(structure, bond_matrix, cleavage_plane, axis = 2):
+    bond_matrix['atom1pos'] = [structure[int(x)-1].coords[axis] for x in bond_matrix['atom1'].values]
+    bond_matrix['atom2pos'] = [structure[int(x)-1].coords[axis] for x in bond_matrix['atom2'].values]
+    clp_df = bond_matrix[(bond_matrix[['atom1pos','atom2pos']].max(axis=1) > cleavage_plane)
+                         & (bond_matrix[['atom1pos','atom2pos']].min(axis=1) < cleavage_plane) ]
+    if axis == 0:
+        repeat1 = "repeatb"
+        repeat2 = "repeatc"
+    elif axis == 1:
+        repeat1 = "repeata"
+        repeat2 = "repeatc"
+    elif axis == 2:
+        repeat1 = "repeata"
+        repeat2 = "repeatb"
+        
+    clp_df = clp_df.copy()[(clp_df[repeat1] == 0) | (clp_df[repeat2] == 0)]
+    # We only want to calculate for atoms that exist in cell. This is important for bond order/area normalisation
+    clp_df_countonce = clp_df.copy()[(clp_df[repeat1] == 0) & (clp_df[repeat2] == 0)]
+    clp_df_counthalf = clp_df.copy()[(clp_df[repeat1] != 0) | (clp_df[repeat2] != 0)]
+    # Basic summed bond order over CP
+    final_bond_order = clp_df_countonce.final_bond_order.sum() + 0.5*clp_df_counthalf.final_bond_order.sum()
+    # N largest
+    #final_bond_order = clp_df.nlargest(15, ['final_bond_order'])["final_bond_order"].sum()
+    # IMPORTANT: This assumes that the cross sectional area can be calculated this way
+    a_fbo = final_bond_order/(float(structure.lattice.volume)/float(structure.lattice.abc[axis]))
+    #print("area of this is %s" % (float(structure.lattice.volume)/float(structure.lattice.c)))
+    return a_fbo
+
+def get_ANSBO_all_cleavage_planes(structure, bond_matrix, axis = 2):
+    atomic_layers = get_unique_values_in_nth_value(structure.cart_coords, axis, tolerance = 0.1)
+    cp_list = compute_average_pairs(atomic_layers)
+
+    ANSBO_profile = []
+    for cp in cp_list:
+        ANSBO_profile.append(get_ANSBO(structure, bond_matrix, cp))
+    return ANSBO_profile
+
+def plot_ANSBO_profile(structure,
+                       bond_matrix,
+                       projection_axis = [1, 2]):
+    ANSBO_values = get_ANSBO_all_cleavage_planes(structure, bond_matrix, projection_axis[-1])
+    atomic_layer_coords = get_unique_values_in_nth_value(structure.cart_coords, projection_axis[-1], tolerance= 0.1)
+    
+    if len(atomic_layer_coords) != len(ANSBO_values) + 1:
+        print("Error: Lengths of the lists are not compatible.")
+        return
+    
+    # plt.figure(figsize=(3,10))
+    
+    # Create lists for the x and y coordinates of the lines
+    x_lines = []
+    y_lines = []
+    
+    # Iterate over the elements of ANSBO_profile
+    for i, value in enumerate(ANSBO_values):
+        # Append x-coordinates for the horizontal lines
+        x_lines.extend([value, value])
+        # Append y-coordinates for the horizontal lines
+        y_lines.extend([atomic_layer_coords[i], atomic_layer_coords[i+1]])
+        # Append x-coordinates for the vertical lines
+        x_lines.append(value)
+        # Append y-coordinates for the vertical lines
+        y_lines.append(atomic_layer_coords[i+1])
+        
+    # Plotting the lines
+    plt.plot(x_lines, y_lines)
+    plt.grid()
+    # Labeling the axes
+    plt.xlabel('ANSBO Profile')
+    plt.ylabel('Coordinates (Angstrom)')
+    
+def plot_ANSBO_profile_and_structure(structure,
+                                     bond_matrix,
+                                     write=False,
+                                     filename="ANSBO.jpg",
+                                     fontsize=16):
+    """
+    Plot the structure bond projection and the ANSBO profile side by side.
+
+    Parameters:
+        structure (list): The structure data to be plotted.
+        bond_matrix (array-like): The bond matrix data for the structure.
+        write (bool, optional): If True, the plot will be saved to a file. Default is False.
+        filename (str, optional): The filename to save the plot. Default is "ANSBO.jpg".
+
+    Returns:
+        None
+    """
+
+    # Create a new figure with two subplots side by side
+    fig, axs = plt.subplots(1, 2, figsize=(10, 20), gridspec_kw={'width_ratios': [2, 1]})
+    
+    # Activate the first subplot and call plot_structure_projection
+    plt.sca(axs[0])
+    plot_structure_projection(structure, bond_matrix=bond_matrix, figsize=(8, 6), atom_colour_dict={"Fe": "b", "Ac": "r"})
+
+    # Activate the second subplot and call plot_ANSBO_profile
+    plt.sca(axs[1])
+    plot_ANSBO_profile(structure, bond_matrix)  # Assuming you have defined the plot_ANSBO_profile function
+
+    # Set the same y-axis limits for both subplots
+    axs[1].set_ylim(axs[0].get_ylim())
+
+    # Adjust the spacing between the plots
+    plt.subplots_adjust(wspace=0.01)  # Set the desired spacing between the subplots
+
+    # Set titles for the subplots
+    axs[0].set_title('Structure Bond Projection', fontsize=fontsize)
+    axs[1].set_title('ANSBO Profile', fontsize=fontsize)
+
+    # Optionally, save the plot to a file
+    if write:
+        plt.savefig(filename)
+
+    # Display the plot
+    plt.show()
+    
+def plot_ANSBO_profile_and_structure_from_dir(directory, extract_from_tarball=True):
+    structure, bond_matrix = parse_DDEC6_analysis_output(os.path.join(directory, "VASP_DDEC_analysis.output"))
+    plot_ANSBO_profile_and_structure(structure, bond_matrix)
