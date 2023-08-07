@@ -6,9 +6,10 @@ from pymatgen.core import Structure, Element
 import pandas as pd
 import numpy as np
 
-from utils.generic import parse_lines, search_line_in_file, find_directories_with_files, extract_files_from_tarball
+import utils.generic as gen_tools
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 class ChargemolAnalysis():
     def __init__(self, directory, extract_dir = False):
@@ -16,8 +17,11 @@ class ChargemolAnalysis():
         self._struct = None
         self._bond_matrix = None
         if extract_dir:
-            extract_chargemol_files(directory)
-        self.parse_DDEC6_analysis_output()
+            directory = find_chargemol_directories(directory)[0]
+        if check_valid_chargemol_output(os.path.join(directory, "VASP_DDEC_analysis.output")):
+            self.parse_DDEC6_analysis_output()
+        else:
+            print("No valid output available! Try extracting any tarballs? Set extract_dir=True")
         
     def parse_DDEC6_analysis_output(self):
         struct, bond_matrix = parse_DDEC6_analysis_output(os.path.join(self.directory, "VASP_DDEC_analysis.output"))
@@ -49,12 +53,23 @@ class ChargemolAnalysis():
 
     def get_min_ANSBO(self, axis=2, tolerance=0.1):
         return min(get_ANSBO_all_cleavage_planes(self.struct, self.bond_matrix, axis=axis, tolerance=tolerance))
-    
-    def get_min
 
-def extract_chargemol_files(directory):
-    extract_files_from_tarball()
+def find_chargemol_directories(parent_dir,
+                          filenames=["VASP_DDEC_analysis.output"],
+                          all_present=False,
+                          extract_tarballs=True):
+    if extract_tarballs:
+        gen_tools.find_and_extract_files_from_tarballs_parallel(parent_dir=parent_dir, 
+                                                                extension=".tar.gz",
+                                                                filenames=filenames,                                                            
+                                                                suffix=None,
+                                                                prefix=None)
+   
+    directories =  gen_tools.find_directories_with_files(parent_dir=parent_dir,
+                                          filenames=filenames,
+                                          all_present=all_present)
 
+    return directories
 def parse_DDEC6_analysis_output(filename):
     """
     Parses VASP_DDEC_analysis.output files and returns a Structure object and bond matrix.
@@ -105,15 +120,15 @@ def parse_DDEC6_analysis_output(filename):
     flist = open(filename).readlines()
 
     bohr_to_angstrom_conversion_factor = 0.529177
-    structure_lattice = parse_lines(flist, trigger_start="vectors", trigger_end="direct_coords")[0]
+    structure_lattice = gen_tools.parse_lines(flist, trigger_start="vectors", trigger_end="direct_coords")[0]
     structure_lattice = np.array([list(map(float, line.split())) for line in structure_lattice])
     structure_lattice = structure_lattice * bohr_to_angstrom_conversion_factor
 
-    structure_frac_coords = parse_lines(flist, trigger_start="direct_coords", trigger_end="totnumA")[0]
+    structure_frac_coords = gen_tools.parse_lines(flist, trigger_start="direct_coords", trigger_end="totnumA")[0]
     structure_frac_coords = [np.array([float(coord) for coord in entry.split()]) for entry in structure_frac_coords]
 
     # Convert atomic numbers to element symbols
-    structure_atomic_no = parse_lines(flist, trigger_start="(Missing core electrons will be inserted using stored core electron reference densities.)", trigger_end=" Finished the check for missing core electrons.")
+    structure_atomic_no = gen_tools.parse_lines(flist, trigger_start="(Missing core electrons will be inserted using stored core electron reference densities.)", trigger_end=" Finished the check for missing core electrons.")
     structure_atomic_no = [Element.from_Z(int(atomic_number.split()[1])).symbol for atomic_number in structure_atomic_no[0]]
 
     structure = Structure(structure_lattice, structure_atomic_no, structure_frac_coords)
@@ -139,7 +154,7 @@ def parse_DDEC6_analysis_output(filename):
                 'bond-idx-before-self-exch',\
                 'final_bond_order']
 
-    bond_matrix = parse_lines(flist, trigger_start="The final bond pair matrix is", trigger_end="The legend for the bond pair matrix follows:")[0]
+    bond_matrix = gen_tools.parse_lines(flist, trigger_start="The final bond pair matrix is", trigger_end="The legend for the bond pair matrix follows:")[0]
     bond_matrix = np.array([list(map(float, line.split())) for line in bond_matrix])
     bond_matrix = pd.DataFrame(bond_matrix, columns=data_column_names)
 
@@ -173,7 +188,7 @@ def check_valid_chargemol_output(vasp_ddec_analysis_output_filepath):
           contains the necessary information.
 
     """
-    convergence = search_line_in_file(vasp_ddec_analysis_output_filepath, "Finished chargemol in")
+    convergence = gen_tools.search_line_in_file(vasp_ddec_analysis_output_filepath, "Finished chargemol in")
 
     return convergence
   
@@ -211,7 +226,7 @@ def find_chargemol_dirs(filepath):
         - The function returns the converged and non-converged lists as a tuple.
 
     """
-    whole_list = find_directories_with_files(filepath, ["INCAR"])
+    whole_list = gen_tools.find_directories_with_files(filepath, ["INCAR"])
     whole_list = [os.path.join(os.path.dirname(path), "VASP_DDEC_analysis.output") for path in whole_list]
     converged_list = []
     non_converged_list = []
@@ -306,7 +321,7 @@ def get_unique_values_in_nth_value(arr_list, n, tolerance):
                 break
         if is_unique:
             unique_values.append(value)
-    return unique_values
+    return np.sort(unique_values)
 
 def compute_average_pairs(lst):
     averages = []
@@ -343,8 +358,8 @@ def get_ANSBO(structure, bond_matrix, cleavage_plane, axis = 2):
     #print("area of this is %s" % (float(structure.lattice.volume)/float(structure.lattice.c)))
     return a_fbo
 
-def get_ANSBO_all_cleavage_planes(structure, bond_matrix, axis = 2):
-    atomic_layers = get_unique_values_in_nth_value(structure.cart_coords, axis, tolerance = 0.1)
+def get_ANSBO_all_cleavage_planes(structure, bond_matrix, axis = 2, tolerance = 0.1):
+    atomic_layers = get_unique_values_in_nth_value(structure.cart_coords, axis, tolerance = tolerance)
     cp_list = compute_average_pairs(atomic_layers)
 
     ANSBO_profile = []
@@ -357,7 +372,7 @@ def plot_ANSBO_profile(structure,
                        projection_axis = [1, 2]):
     ANSBO_values = get_ANSBO_all_cleavage_planes(structure, bond_matrix, projection_axis[-1])
     atomic_layer_coords = get_unique_values_in_nth_value(structure.cart_coords, projection_axis[-1], tolerance= 0.1)
-    
+
     if len(atomic_layer_coords) != len(ANSBO_values) + 1:
         print("Error: Lengths of the lists are not compatible.")
         return
@@ -410,11 +425,17 @@ def plot_ANSBO_profile_and_structure(structure,
     # Activate the first subplot and call plot_structure_projection
     plt.sca(axs[0])
     plot_structure_projection(structure, bond_matrix=bond_matrix, figsize=(8, 6), atom_colour_dict={"Fe": "b", "Ac": "r"})
-
+    plt.grid(True, which='major', linestyle='-')
+    plt.grid(True, which='minor', linestyle='--')
+    axs[0].xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    axs[0].yaxis.set_minor_locator(ticker.MultipleLocator(1))
     # Activate the second subplot and call plot_ANSBO_profile
     plt.sca(axs[1])
     plot_ANSBO_profile(structure, bond_matrix)  # Assuming you have defined the plot_ANSBO_profile function
-
+    plt.grid(True, which='major', linestyle='-')
+    plt.grid(True, which='minor', linestyle='--')
+    axs[1].xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    axs[1].yaxis.set_minor_locator(ticker.MultipleLocator(1))
     # Set the same y-axis limits for both subplots
     axs[1].set_ylim(axs[0].get_ylim())
 
