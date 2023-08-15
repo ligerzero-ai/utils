@@ -273,7 +273,6 @@ def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplo
         ...     print("Calculation has not converged.")
     """
     try:
-        print("trying vasprun branch convergence")
         vr = Vasprun(filename=os.path.join(directory, filename_vasprun))
         return vr.converged
     except:
