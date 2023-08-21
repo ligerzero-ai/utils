@@ -71,6 +71,7 @@ def get_per_site_SOAP_descriptor(structure,
     # Group the DataFrame by "input_index" and drop the "input_index" column from each group
     df_list = [soap_df.reset_index(drop=True).drop(columns='input_index') for _, soap_df in soap_df.groupby(["input_index"])]
     return df
+
 def get_per_site_SOAP_dfs(struct_list, cutoff=3, l_max=10, n_max=10, atom_sigma=0.5, verbose=False, n_jobs=16):
     """
     Process a list of pymatgen structures using the Smooth Overlap of Atomic Positions (SOAP) method
