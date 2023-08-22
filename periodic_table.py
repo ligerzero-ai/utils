@@ -123,7 +123,7 @@ def periodic_table_plot(plot_df,
                         property_name = None,
                         cmap = cm.Blues):
     module_path = os.path.dirname(os.path.abspath(__file__))
-    ptable = pd.read_csv(os.path.join(module_path, 'periodic_table.csv'))s
+    ptable = pd.read_csv(os.path.join(module_path, 'periodic_table.csv'))
     ptable.index = ptable['symbol'].values
     elem_tracker = ptable['count']
     n_row = ptable['row'].max()
