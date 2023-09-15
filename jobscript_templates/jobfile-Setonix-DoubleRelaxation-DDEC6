@@ -14,7 +14,7 @@ cd "$PBS_O_WORKDIR"
 ulimit -s unlimited
 run_cmd="srun --export=ALL -N {NODESTRING} -n {CPUSTRING}"
 
-source /software/projects/pawsey0380/hmai/mambaforge/bin/activate custodian
+source /scratch/pawsey0380/hmai/mambaforge/bin/activate pymatgen
 
 echo 'import sys
 

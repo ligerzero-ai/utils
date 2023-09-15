@@ -14,6 +14,8 @@ cd "$PBS_O_WORKDIR"
 ulimit -s unlimited
 run_cmd="srun --export=ALL -N {NODESTRING} -n {CPUSTRING}"
 
+source /scratch/pawsey0380/hmai/mambaforge/bin/activate pymatgen
+
 echo 'import sys
 
 from custodian.custodian import Custodian
@@ -81,6 +83,7 @@ current_dir=$(pwd)
 mkdir DDEC6_relaxed
 mv AECCAR0 AECCAR1 AECCAR2 CHGCAR DDEC6_relaxed/
 cp CONTCAR DDEC6_relaxed/
+cp job_control.txt DDEC6_relaxed/
 cd DDEC6_relaxed
 $run_cmd Chargemol_09_26_2017_linux_parallel
 cd "$current_dir"
@@ -91,6 +94,7 @@ mv AECCAR1.static_1 DDEC6_initial/AECCAR1
 mv AECCAR2.static_1 DDEC6_initial/AECCAR2
 mv CHGCAR.static_1 DDEC6_initial/CHGCAR
 cp CONTCAR.static_1 DDEC6_initial/CONTCAR
+cp job_control.txt DDEC6_relaxed/
 cd DDEC6_initial
 $run_cmd Chargemol_09_26_2017_linux_parallel
 cd "$current_dir"
