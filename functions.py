@@ -121,7 +121,7 @@ class jobfile:
         # Only on GADI
         filedata = filedata.replace("{MEMORYSTRING}", "%sGB" % self.RAM)
 
-        if self.CPU < self.cpu_per_node:
+        if self.CPU <= self.cpu_per_node:
             filedata = filedata.replace("{NODESTRING}", "1")
         else:
             filedata = filedata.replace("{NODESTRING}", "%s" % int(self.CPU/self.cpu_per_node))
