@@ -1,9 +1,6 @@
 import os
-import pandas as pd
 import numpy as np
 import shutil
-import time
-import re
 import io
 
 from pymatgen.core import Structure
@@ -15,106 +12,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.vasp.inputs import Potcar, Incar, Kpoints
 from pymatgen.io.vasp.outputs import Outcar
 
-import matplotlib
-from matplotlib.pyplot import figure
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-
 potcar_library_path = "/root/POTCAR_Library/GGA"
-
-element_symbols = {
-    1: 'H',
-    2: 'He',
-    3: 'Li',
-    4: 'Be',
-    5: 'B',
-    6: 'C',
-    7: 'N',
-    8: 'O',
-    9: 'F',
-    10: 'Ne',
-    11: 'Na',
-    12: 'Mg',
-    13: 'Al',
-    14: 'Si',
-    15: 'P',
-    16: 'S',
-    17: 'Cl',
-    18: 'Ar',
-    19: 'K',
-    20: 'Ca',
-    21: 'Sc',
-    22: 'Ti',
-    23: 'V',
-    24: 'Cr',
-    25: 'Mn',
-    26: 'Fe',
-    27: 'Co',
-    28: 'Ni',
-    29: 'Cu',
-    30: 'Zn',
-    31: 'Ga',
-    32: 'Ge',
-    33: 'As',
-    34: 'Se',
-    35: 'Br',
-    36: 'Kr',
-    37: 'Rb',
-    38: 'Sr',
-    39: 'Y',
-    40: 'Zr',
-    41: 'Nb',
-    42: 'Mo',
-    43: 'Tc',
-    44: 'Ru',
-    45: 'Rh',
-    46: 'Pd',
-    47: 'Ag',
-    48: 'Cd',
-    49: 'In',
-    50: 'Sn',
-    51: 'Sb',
-    52: 'Te',
-    53: 'I',
-    54: 'Xe',
-    55: 'Cs',
-    56: 'Ba',
-    57: 'La',
-    58: 'Ce',
-    59: 'Pr',
-    60: 'Nd',
-    61: 'Pm',
-    62: 'Sm',
-    63: 'Eu',
-    64: 'Gd',
-    65: 'Tb',
-    66: 'Dy',
-    67: 'Ho',
-    68: 'Er',
-    69: 'Tm',
-    70: 'Yb',
-    71: 'Lu',
-    72: 'Hf',
-    73: 'Ta',
-    74: 'W',
-    75: 'Re',
-    76: 'Os',
-    77: 'Ir',
-    78: 'Pt',
-    79: 'Au',
-    80: 'Hg',
-    81: 'Tl',
-    82: 'Pb',
-    83: 'Bi',
-    84: 'Po',
-    85: 'At',
-    86: 'Rn',
-    87: 'Fr',
-    88: 'Ra',
-    89: 'Ac',
-    90: 'Th',
-    91: 'Pa',
-    92: 'U'}
 
 sites_to_study = {"S11-RA110-S3-32": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
                   "S3-RA110-S1-11": [20, 22, 24, 26, 28, 30, 32, 34, 36],
@@ -190,6 +88,7 @@ class jobfile:
                  HPC = "Gadi",
                  VASP_version = "5.4.4",
                  CPU = 192,
+                 cpu_per_node = 48,
                  RAM = 64,
                  walltime = 999,
                  max_resubmissions = 999):
@@ -200,6 +99,7 @@ class jobfile:
         self.RAM = RAM
         self.walltime = walltime
         self.max_resubmissions = max_resubmissions
+        self.cpu_per_node = cpu_per_node
 
     def to_file(self,\
                 job_name = 'template_job',\
@@ -220,13 +120,10 @@ class jobfile:
         # Only on GADI
         filedata = filedata.replace("{MEMORYSTRING}", "%sGB" % self.RAM)
 
-        # Only on MAGNUS/SETONIX
-        if self.HPC == "Magnus":
-            filedata = filedata.replace("{NODESTRING}", "%s" % int(self.CPU/24))
-        elif self.HPC == "Setonix" and self.CPU < 128:
+        if self.CPU < self.cpu_per_node:
             filedata = filedata.replace("{NODESTRING}", "1")
         else:
-            filedata = filedata.replace("{NODESTRING}", "%s" % int(self.CPU/128))
+            filedata = filedata.replace("{NODESTRING}", "%s" % int(self.CPU/self.cpu_per_node))
             
         filedata = filedata.replace("{CASESTRING}", "%s" % job_name)
 
@@ -550,7 +447,7 @@ def createJobFolder(structure,\
     if KPOINT:
         KPOINT.to_file(filepath = folder_path)
 
-    jobfile.to_file(case_name = '%s.sh' % os.path.basename(folder_path),\
+    jobfile.to_file(job_name = '%s.sh' % os.path.basename(folder_path),\
                     output_path = "%s" % (folder_path))
     if not quiet:
         print("Generating jobfolder, name %s" % (os.path.basename(folder_path)))
@@ -664,24 +561,3 @@ def cleave_sites(structure, cleave_line_coord, vacuum_size):
     cleaved_cell = transformation_shift_up.apply_transformation(structure)
     cleaved_cell = transformation_shift_down.apply_transformation(cleaved_cell)
     return cleaved_cell
-
-
-#%%
-# This function reads a table from VASP_DDEC_analysis.output of the bond orders
-def VASPDDEC_2_CSV( filename, output_filename ):
-    flist = open(filename).readlines()
-    parsing = False
-    matrix = []
-    for line in flist:
-        if "The legend for the bond pair matrix follows:" in line:
-            parsing = False
-        if parsing:
-            matrix.append(line)
-            #print(line)
-        if "The final bond pair matrix is" in line:
-            parsing = True
-    f=open(output_filename,'w')
-    f.write("atom-no.1 atom-no.2 repeata repeatb repeatc min-na max-na min-nb max-nb min-nc max-nc contact-exchange avg-spin-pol-bonding-term overlap-population isoaepfcbo coord-term-tanh pairwise-term exp-term-comb-coord-pairwise bond-idx-before-self-exch final-bond-order \n")
-    for bond in matrix:
-        f.write(bond)
-    f.close()
