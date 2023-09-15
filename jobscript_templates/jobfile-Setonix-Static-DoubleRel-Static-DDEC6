@@ -64,7 +64,7 @@ echo '<net charge>
 .true. <--- specifies whether the third direction is periodic
 </periodicity along A, B, and C vectors>
 <atomic densities directory complete path>
-/cmmc/u/hmai/chargemol_09_26_2017/atomic_densities/
+/home/hmai/chargemol_09_26_2017/atomic_densities/
 </atomic densities directory complete path>
 <charge type>
 DDEC6 <-- specifies the charge type (DDEC3 or DDEC6)
@@ -83,7 +83,7 @@ current_dir=$(pwd)
 mkdir DDEC6_relaxed
 mv AECCAR0 AECCAR1 AECCAR2 CHGCAR DDEC6_relaxed/
 cp CONTCAR DDEC6_relaxed/
-cp job_control.txt DDEC6_relaxed/
+cp job_control.txt POTCAR DDEC6_relaxed/
 cd DDEC6_relaxed
 $run_cmd Chargemol_09_26_2017_linux_parallel
 cd "$current_dir"
@@ -94,7 +94,7 @@ mv AECCAR1.static_1 DDEC6_initial/AECCAR1
 mv AECCAR2.static_1 DDEC6_initial/AECCAR2
 mv CHGCAR.static_1 DDEC6_initial/CHGCAR
 cp CONTCAR.static_1 DDEC6_initial/CONTCAR
-cp job_control.txt DDEC6_relaxed/
+cp job_control.txt POTCAR DDEC6_relaxed/
 cd DDEC6_initial
 $run_cmd Chargemol_09_26_2017_linux_parallel
 cd "$current_dir"
