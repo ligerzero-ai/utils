@@ -202,24 +202,16 @@ class jobfile:
         self.max_resubmissions = max_resubmissions
 
     def to_file(self,\
-                case_name = 'template_job',\
+                job_name = 'template_job',\
                 output_path = os.path.join(os.getcwd(), "test")):
         """
-        Writes KPOINTS file with MP gamma centred grid:
-
-        case_name = string at top of file (defaults to "no filename given")
-        filepath = system filepath where KPOINTS is to be written
-
         """
 
         createFolder(output_path)
 
         with open("%s" % (self.file_path), 'r') as fin :
             filedata = fin.read()
-        if self.HPC == "Gadi":
-            fin = open("%s" % (self.file_path), "rt", newline="\n")
-        elif self.HPC in ["Setonix", "Magnus"]:
-            fin = open("%s" % (self.file_path), "rt", newline="\n")
+        fin = open("%s" % (self.file_path), "rt", newline="\n")
         # Replace the target string
         filedata = filedata.replace("{WALLTIMESTRING}", "%s:00:00" % self.walltime)
         filedata = filedata.replace("{CPUSTRING}", str(self.CPU))
@@ -235,8 +227,8 @@ class jobfile:
             filedata = filedata.replace("{NODESTRING}", "1")
         else:
             filedata = filedata.replace("{NODESTRING}", "%s" % int(self.CPU/128))
-        filedata = filedata.replace("{CASESTRING}", "%s" % case_name)
-
+            
+        filedata = filedata.replace("{CASESTRING}", "%s" % job_name)
 
         if self.VASP_version == "5.4.4":
             filedata = filedata.replace("{VASPMODULELOADSTRING}", 'module load vasp/%s' %  self.VASP_version)
@@ -247,7 +239,7 @@ class jobfile:
                 filedata = filedata.replace("{VASPMODULELOADSTRING}", 'module load vasp/%s' % self.VASP_version)
 
         # Write the file out again
-        with open(os.path.join(output_path, case_name), 'w') as fout:
+        with open(os.path.join(output_path, job_name), 'w') as fout:
             fout.write(filedata)
 
         fin.close()

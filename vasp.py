@@ -365,20 +365,6 @@ def find_converged_dirs(parent_dir):
     converged_dirs = [directory for directory, convergence in dir_and_convergence if convergence]
     return converged_dirs
 
-class BackupData():
-    def __init__(self, parent_dir):
-        self.parent_dir = parent_dir
-    
-    def backup_converged_dirs(self,
-                              backup_directory,
-                              compress_backup_parent_dir = False,
-                              remove_from_original_dir = False):
-        converged_dirs = find_converged_dirs(self.parent_dir)
-        
-        converged_dirs = []
-        shutil.copy
-        gen_tools.compress_directory_parallel()
-
 class DatabaseGenerator():
     
     def __init__(self, parent_dir):
@@ -1692,3 +1678,37 @@ def _get_lines_from_file(filename, lines=None):
         with open(filename, "r") as f:
             lines = f.readlines()
     return lines
+
+def update_database(df_base, df_update):
+    # Get the unique job names from df2
+    df_update_jobs = set(df_update["job_name"])
+
+    # Filter rows in df1 that have job names not present in df2
+    df_base = df_base[~df_base["job_name"].isin(df_update_jobs)].copy()
+
+    # Append df2 to the filtered df1
+    merged_df = pd.concat([df_base, df_update_jobs], ignore_index=True)
+    return merged_df
+
+def robust_append_last(clist, value):
+    try:
+        clist.append(value[-1])
+    except (IndexError, TypeError):
+        clist.append(np.nan)
+    return clist
+
+def create_summary(database_df):
+    energies = []
+    magmoms = []
+    structures = []
+    
+    for i, row in database_df.iterrows():
+        energies = robust_append_last(energies, row.energy_zero)
+        magmoms = robust_append_last(magmoms, row.magmoms)
+        structures = robust_append_last(structures, row.structures)
+    
+    df = database_df[["job_name", "convergence"]].copy()
+    df["total_energy"] = energies
+    df["magmoms"] = magmoms
+    df["structures"] = structures
+    return df
