@@ -56,7 +56,7 @@ export PATH=$PATH:/home/hmai/chargemol_09_26_2017/chargemol_FORTRAN_09_26_2017/c
 $run_cmd Chargemol_09_26_2017_linux_parallel
 
 # Cleanup the data so it doesn't flood the drive
-rm CHG* CHGCAR* PROCAR* WAVECAR* EIGENVAL* REPORT* IBZKPT* REPORT* DOSCAR.* XDATCAR*
+rm CHG* CHGCAR* PROCAR* WAVECAR* EIGENVAL* REPORT* IBZKPT* REPORT* DOSCAR.* XDATCAR* AECCAR*
 
 # directory_name=$(basename "$PWD")
 # tar -czvf "${directory_name}.tar.gz" --exclude="AECCAR*" .

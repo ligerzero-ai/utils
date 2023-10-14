@@ -70,6 +70,7 @@ def find_chargemol_directories(parent_dir,
                                           all_present=all_present)
 
     return directories
+
 def parse_DDEC6_analysis_output(filename):
     """
     Parses VASP_DDEC_analysis.output files and returns a Structure object and bond matrix.
