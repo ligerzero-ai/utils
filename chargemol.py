@@ -2,15 +2,147 @@
 import os
 
 from pymatgen.core import Structure, Element
+from pymatgen.command_line.chargemol_caller import ChargemolAnalysis as PMGChargemolAnalysis
 
 import pandas as pd
 import numpy as np
 
 import utils.generic as gen_tools
 
+from utils.parallel import parallelise
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+import time 
+
+def get_stats(property_list, property_str):
+    """
+    Calculate statistical properties of a list of values.
+    Parameters:
+    property_list (list): A list of numerical values for which statistics are calculated.
+    property_str (str): A string prefix to be used in the resulting statistical property names.
+    Returns:
+    dict: A dictionary containing statistical properties with keys in the format:
+          "{property_str}_{statistic}" where statistic can be "std" (standard deviation),
+          "mean" (mean), "min" (minimum), and "max" (maximum).
+    Example:
+    >>> values = [1, 2, 3, 4, 5]
+    >>> get_stats(values, "example")
+    {'example_std': 1.4142135623730951,
+     'example_mean': 3.0,
+     'example_min': 1,
+     'example_max': 5}
+    """
+    return {
+        f"{property_str}_std": np.std(property_list),
+        f"{property_str}_mean": np.mean(property_list),
+        f"{property_str}_min": np.min(property_list),
+        f"{property_str}_max": np.max(property_list),
+    }
+    
+def summarise_DDEC_data(directory, bond_order_threshold=0.05):
+    # try:
+    ca = PMGChargemolAnalysis(directory, run_chargemol=False)
+    bo_df = []
+    element_list = []
+    for entries in ca.bond_order_dict:
+        df = pd.DataFrame(ca.bond_order_dict[entries]["bonded_to"])
+        df_thres = df[df["bond_order"] > bond_order_threshold]
+        bo_stats_df = get_stats(df_thres.bond_order.tolist(), "bond_order")
+        bo_stats_df = pd.DataFrame.from_dict(bo_stats_df, orient='index', columns=[str(entries)]).T
+        bo_stats_df["n_bonds"] = len(df_thres)
+        bo_df.append(bo_stats_df)
+        element_symbol = ca.bond_order_dict[entries]["element"].symbol
+        element_list.append(element_symbol)
+    ddec_df = pd.concat(bo_df)
+    ddec_df["filepath"] = directory
+    ddec_df["element"] = element_list
+    ddec_df["bond_order_sums"] = ca.bond_order_sums
+    ddec_df["ddec_charges"] = ca.ddec_charges
+    ddec_df["cm5_charges"] = ca.cm5_charges
+    ddec_df["ddec_rcubed_moments"] = ca.ddec_rcubed_moments
+    ddec_df["ddec_rfourth_moments"] = ca.ddec_rfourth_moments
+    ddec_df["ddec_spin_moments"] = ca.ddec_spin_moments
+    ddec_df["dipoles"] = ca.dipoles
+    ddec_df["charge_transfer"] = [ca.get_charge_transfer(i) for i in ca.bond_order_dict]
+    ddec_df["partial_charge"] = [ca.get_partial_charge(i) for i in ca.bond_order_dict]
+    # except FileNotFoundError:
+    #     print(FileNotFoundError, directory)
+    #     # Define the column names based on the existing DataFrame
+    #     columns = ["bond_order_std", "bond_order_mean", "bond_order_min", "bond_order_max", "n_bonds",
+    #             "element", "bond_order_sums", "ddec_charges", "cm5_charges", "ddec_rcubed_moments",
+    #             "ddec_rfourth_moments", "ddec_spin_moments", "dipoles", "charge_transfer", "partial_charge"]
+
+    #     # Create a new DataFrame with NaN values in all columns
+    #     empty_data = [[np.nan] * len(columns)]
+    #     ddec_df = pd.DataFrame(empty_data, columns=columns)
+    #     ddec_df["filepath"] = directory
+    return ddec_df
+
+def get_solute_summary_DDEC_data(directory, bond_order_threshold=0.05, base_solute="Fe"):
+    df = summarise_DDEC_data(directory=directory, bond_order_threshold=bond_order_threshold)
+    df = df[df["element"]==base_solute]
+    return df
+
+class DatabaseGenerator():
+    
+    def __init__(self, parent_dir):
+        self.parent_dir = parent_dir
+        
+    def build_database(self,
+                       target_directory = None,
+                       extract_directories = False,
+                       cleanup=False,
+                       keep_filenames_after_cleanup = [],
+                       keep_filename_patterns_after_cleanup = [],
+                       max_dir_count = None,
+                       df_filename = None):
+        
+        start_time = time.time()
+        
+        if target_directory:
+            dirs = find_chargemol_directories(parent_dir=target_directory, extract_tarballs=extract_directories)
+        else:
+            dirs = find_chargemol_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories)
+        
+        print(f"The total number of vasp directories that we are building the database out of is {len(dirs)}")
+        
+        if max_dir_count:
+            pkl_filenames = []
+            for i, chunks in enumerate(gen_tools.chunk_list(dirs, max_dir_count)):
+                step_time = time.time()
+                df = pd.concat(parallelise(summarise_DDEC_data, chunks))
+                if df_filename:
+                    db_filename = f"{i}_{df_filename}.pkl"
+                else:
+                    db_filename = f"{i}.pkl"
+                pkl_filenames.append(os.path.join(self.parent_dir, db_filename))
+                df.to_pickle(os.path.join(self.parent_dir, db_filename))
+                step_taken_time = np.round(step_time - time.time(),3)
+                print(f"Step {i}: {step_taken_time} seconds taken for {len(chunks)} parse steps")
+                
+            df = pd.concat([pd.read_pickle(partial_df) for partial_df in pkl_filenames])
+            df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
+        else:
+            df = pd.concat(parallelise(summarise_DDEC_data, dirs))
+            if df_filename:
+                df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        
+        # not optional - keep the tarballs/zips..
+        keep_filename_patterns_after_cleanup += ".tar.gz"
+        keep_filename_patterns_after_cleanup += ".tar.bz2"
+        keep_filename_patterns_after_cleanup += ".zip"
+
+        if cleanup:
+            gen_tools.cleanup_dir(directory_path=dirs, keep=True, files=[], file_patterns=[])
+            parallelise(gen_tools.cleanup_dir, dirs, [True] * len(dirs), keep_filenames_after_cleanup*len(dirs), keep_filename_patterns_after_cleanup*len(dirs))
+        
+        print("Elapsed time:", np.round(elapsed_time, 3), "seconds")
+
+        return df
+    
 class ChargemolAnalysis():
     def __init__(self, directory, extract_dir = False):
         self.directory = directory
@@ -55,7 +187,14 @@ class ChargemolAnalysis():
         return min(get_ANSBO_all_cleavage_planes(self.struct, self.bond_matrix, axis=axis, tolerance=tolerance))
 
 def find_chargemol_directories(parent_dir,
-                          filenames=["VASP_DDEC_analysis.output"],
+                            filenames=["DDEC6_even_tempered_atomic_spin_moments.xyz",
+                                     "DDEC6_even_tempered_net_atomic_charges.xyz",
+                                     "DDEC_atomic_Rfourth_moments.xyz",
+                                     "overlap_populations.xyz",
+                                     "DDEC6_even_tempered_bond_orders.xyz",
+                                     "DDEC_atomic_Rcubed_moments.xyz",
+                                     "DDEC_atomic_Rsquared_moments.xyz",
+                                     "POTCAR"],
                           all_present=False,
                           extract_tarballs=True):
     if extract_tarballs:
