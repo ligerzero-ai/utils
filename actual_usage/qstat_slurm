@@ -1,0 +1,1 @@
+squeue --noheader -o "%u %t" | awk '{count[$1][$2]++} END {printf "%-20s %-10s %-10s\n", "Username", "PD", "R"; for (user in count) {printf "%-20s %-10s %-10s\n", user, count[user]["PD"], count[user]["R"]}}' | sort
