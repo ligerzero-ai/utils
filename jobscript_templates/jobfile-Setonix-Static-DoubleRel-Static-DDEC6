@@ -28,7 +28,7 @@ jobs = [VaspJob(sys.argv[1:],
                 output_file=output_filename,
                 suffix = ".static_1",
                 final=False,
-                settings_override=[{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 400, "EDIFF": 1E-5, "KSPACING" : 0.5}}}]),
+                settings_override=[{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 500, "EDIFF": 1E-5, "KSPACING" : 0.5}}}]),
         VaspJob(sys.argv[1:],
                 output_file=output_filename,
                 suffix = ".relax_1", final=False,
@@ -48,7 +48,7 @@ jobs = [VaspJob(sys.argv[1:],
         VaspJob(sys.argv[1:],
                 output_file=output_filename,
                 suffix = "",
-                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 400, "EDIFF": 1E-5}}},
+                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 500, "EDIFF": 1E-5}}},
                                      {"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}}])]
 c = Custodian(handlers, jobs, max_errors=10)
 c.run()'>custodian_vasp.py
