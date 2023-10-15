@@ -82,7 +82,6 @@ current_dir=$(pwd)
 
 mkdir DDEC6_relaxed
 mv AECCAR0 AECCAR1 AECCAR2 CHGCAR DDEC6_relaxed/
-cp CONTCAR DDEC6_relaxed/
 cp job_control.txt POTCAR DDEC6_relaxed/
 cd DDEC6_relaxed
 $run_cmd Chargemol_09_26_2017_linux_parallel
@@ -93,12 +92,11 @@ mv AECCAR0.static_1 DDEC6_initial/AECCAR0
 mv AECCAR1.static_1 DDEC6_initial/AECCAR1
 mv AECCAR2.static_1 DDEC6_initial/AECCAR2
 mv CHGCAR.static_1 DDEC6_initial/CHGCAR
-cp CONTCAR.static_1 DDEC6_initial/CONTCAR
-cp job_control.txt POTCAR DDEC6_relaxed/
+cp job_control.txt POTCAR DDEC6_initial/
 cd DDEC6_initial
 $run_cmd Chargemol_09_26_2017_linux_parallel
 cd "$current_dir"
 
 # Cleanup the data so it doesn't flood the drive
-rm CHG* CHGCAR* PROCAR* WAVECAR* EIGENVAL* REPORT* IBZKPT* REPORT* DOSCAR.relax_1 DOSCAR.relax_2
-#find . -type f \( -name "CHG*" -o -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" -o -name "AECCAR*" \) -delete
+#rm CHG* CHGCAR* PROCAR* WAVECAR* EIGENVAL* REPORT* IBZKPT* REPORT* DOSCAR.relax_1 DOSCAR.relax_2
+find . -type f \( -name "CHG*" -o -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" -o -name "AECCAR*" -o -name "DOSCAR.*" \) -delete
