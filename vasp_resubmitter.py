@@ -70,17 +70,19 @@ class CalculationConverger():
         return dirs_to_search_next_time
     
     def reconverge(self, dirpath):
-        
-        relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
+        static1_files_exist = any(f.endswith(".static_1") for f in os.listdir(dirpath))
         relax1_files_exist = any(f.endswith(".relax_1") for f in os.listdir(dirpath))
-        
+        relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
+
         # Check if .relax_1 and .relax2 files exist and use the static relaxation script
+        if static1_files_exist:
+            script_name = os.path.join(self.script_template_dir, "SDRS_Custodian_1.sh")
         if relax2_files_exist:
-            script_name = os.path.join(self.script_template_dir, "CustodianStatic.sh")
+            script_name = os.path.join(self.script_template_dir, "SDRS_Custodian_2.sh")
         elif relax1_files_exist:
-            script_name = os.path.join(self.script_template_dir, "CustodianContinue_SecondRelax.sh")
+            script_name = os.path.join(self.script_template_dir, "SDRS_Custodian_3.sh")
         else:
-            script_name = os.path.join(self.script_template_dir, "CustodianDoubleRelaxation.sh")
+            script_name = os.path.join(self.script_template_dir, "SDRS_Custodian.sh")
         
         target_script_name = f"{os.path.basename(dirpath)}.sh"
         
