@@ -39,44 +39,59 @@ def get_stats(property_list, property_str):
         f"{property_str}_min": np.min(property_list),
         f"{property_str}_max": np.max(property_list),
     }
+
+def check_chargemol_output_present(directory,\
+                                   required_files = ["DDEC6_even_tempered_atomic_spin_moments.xyz",\
+                                                     "DDEC6_even_tempered_net_atomic_charges.xyz",\
+                                                     "DDEC_atomic_Rfourth_moments.xyz",\
+                                                     "overlap_populations.xyz",\
+                                                     "DDEC6_even_tempered_bond_orders.xyz",\
+                                                     "DDEC_atomic_Rcubed_moments.xyz",\
+                                                     "DDEC_atomic_Rsquared_moments.xyz",\
+                                                     "POTCAR"]):
+    missing_files = [file for file in required_files if not os.path.exists(os.path.join(directory, file))]
+    if missing_files:
+        return False
+    else:
+        return True  # All required files are present
     
 def summarise_DDEC_data(directory, bond_order_threshold=0.05):
-    # try:
-    ca = PMGChargemolAnalysis(directory, run_chargemol=False)
-    bo_df = []
-    element_list = []
-    for entries in ca.bond_order_dict:
-        df = pd.DataFrame(ca.bond_order_dict[entries]["bonded_to"])
-        df_thres = df[df["bond_order"] > bond_order_threshold]
-        bo_stats_df = get_stats(df_thres.bond_order.tolist(), "bond_order")
-        bo_stats_df = pd.DataFrame.from_dict(bo_stats_df, orient='index', columns=[str(entries)]).T
-        bo_stats_df["n_bonds"] = len(df_thres)
-        bo_df.append(bo_stats_df)
-        element_symbol = ca.bond_order_dict[entries]["element"].symbol
-        element_list.append(element_symbol)
-    ddec_df = pd.concat(bo_df)
-    ddec_df["filepath"] = directory
-    ddec_df["element"] = element_list
-    ddec_df["bond_order_sums"] = ca.bond_order_sums
-    ddec_df["ddec_charges"] = ca.ddec_charges
-    ddec_df["cm5_charges"] = ca.cm5_charges
-    ddec_df["ddec_rcubed_moments"] = ca.ddec_rcubed_moments
-    ddec_df["ddec_rfourth_moments"] = ca.ddec_rfourth_moments
-    ddec_df["ddec_spin_moments"] = ca.ddec_spin_moments
-    ddec_df["dipoles"] = ca.dipoles
-    ddec_df["charge_transfer"] = [ca.get_charge_transfer(i) for i in ca.bond_order_dict]
-    ddec_df["partial_charge"] = [ca.get_partial_charge(i) for i in ca.bond_order_dict]
-    # except FileNotFoundError:
-    #     print(FileNotFoundError, directory)
-    #     # Define the column names based on the existing DataFrame
-    #     columns = ["bond_order_std", "bond_order_mean", "bond_order_min", "bond_order_max", "n_bonds",
-    #             "element", "bond_order_sums", "ddec_charges", "cm5_charges", "ddec_rcubed_moments",
-    #             "ddec_rfourth_moments", "ddec_spin_moments", "dipoles", "charge_transfer", "partial_charge"]
+    if not check_chargemol_output_present(directory):
+        # Some files are missing, return a DataFrame with NaN values and the filepath
+        columns = ["bond_order_std", "bond_order_mean", "bond_order_min", "bond_order_max", "n_bonds",
+                    "element", "bond_order_sums", "ddec_charges", "cm5_charges", "ddec_rcubed_moments",
+                    "ddec_rfourth_moments", "ddec_spin_moments", "dipoles", "charge_transfer", "partial_charge"]
+        empty_data = [[np.nan] * len(columns)]
+        ddec_df = pd.DataFrame(empty_data, columns=columns)
+        ddec_df["filepath"] = directory
+    else:
+        ca = PMGChargemolAnalysis(directory, run_chargemol=False)
+        bo_df = []
+        element_list = []
+        
+        for entries in ca.bond_order_dict:
+            df = pd.DataFrame(ca.bond_order_dict[entries]["bonded_to"])
+            df_thres = df[df["bond_order"] > bond_order_threshold]
+            bo_stats_df = get_stats(df_thres.bond_order.tolist(), "bond_order")
+            bo_stats_df = pd.DataFrame.from_dict(bo_stats_df, orient='index', columns=[str(entries)]).T
+            bo_stats_df["n_bonds"] = len(df_thres)
+            bo_df.append(bo_stats_df)
+            element_symbol = ca.bond_order_dict[entries]["element"].symbol
+            element_list.append(element_symbol)
+            
+        ddec_df = pd.concat(bo_df)
+        ddec_df["filepath"] = directory
+        ddec_df["element"] = element_list
+        ddec_df["bond_order_sums"] = ca.bond_order_sums
+        ddec_df["ddec_charges"] = ca.ddec_charges
+        ddec_df["cm5_charges"] = ca.cm5_charges
+        ddec_df["ddec_rcubed_moments"] = ca.ddec_rcubed_moments
+        ddec_df["ddec_rfourth_moments"] = ca.ddec_rfourth_moments
+        ddec_df["ddec_spin_moments"] = ca.ddec_spin_moments
+        ddec_df["dipoles"] = ca.dipoles
+        ddec_df["charge_transfer"] = [ca.get_charge_transfer(i) for i in ca.bond_order_dict]
+        ddec_df["partial_charge"] = [ca.get_partial_charge(i) for i in ca.bond_order_dict]
 
-    #     # Create a new DataFrame with NaN values in all columns
-    #     empty_data = [[np.nan] * len(columns)]
-    #     ddec_df = pd.DataFrame(empty_data, columns=columns)
-    #     ddec_df["filepath"] = directory
     return ddec_df
 
 def get_solute_summary_DDEC_data(directory, bond_order_threshold=0.05, base_solute="Fe"):
@@ -122,11 +137,13 @@ class DatabaseGenerator():
                 print(f"Step {i}: {step_taken_time} seconds taken for {len(chunks)} parse steps")
                 
             df = pd.concat([pd.read_pickle(partial_df) for partial_df in pkl_filenames])
-            df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
+
         else:
             df = pd.concat(parallelise(summarise_DDEC_data, dirs))
-            if df_filename:
-                df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
+        if df_filename:
+            df.to_pickle(os.path.join(self.parent_dir, df_filename))
+        else:
+            df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
         end_time = time.time()
         elapsed_time = end_time - start_time
         
@@ -195,7 +212,7 @@ def find_chargemol_directories(parent_dir,
                                      "DDEC_atomic_Rcubed_moments.xyz",
                                      "DDEC_atomic_Rsquared_moments.xyz",
                                      "POTCAR"],
-                          all_present=False,
+                          all_present=True,
                           extract_tarballs=True):
     if extract_tarballs:
         gen_tools.find_and_extract_files_from_tarballs_parallel(parent_dir=parent_dir, 
