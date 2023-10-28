@@ -25,7 +25,7 @@ from custodian.vasp.jobs import VaspJob
 output_filename = "vasp.log"
 handlers = [VaspErrorHandler(output_filename=output_filename), UnconvergedErrorHandler(), NonConvergingErrorHandler(), PositiveEnergyErrorHandler()]
 jobs = [VaspJob(sys.argv[1:], output_file=output_filename, suffix = "",
-                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 1, "LAECHG": True, "LCHARGE": True, "NELM": 300, "EDIFF": 1E-5}}}])]
+                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 500, "EDIFF": 1E-5}}}])]
 c = Custodian(handlers, jobs, max_errors=10)
 c.run()' > StaticImage-DDEC6-custodian.py
 
@@ -56,8 +56,7 @@ export PATH=$PATH:/home/hmai/chargemol_09_26_2017/chargemol_FORTRAN_09_26_2017/c
 $run_cmd Chargemol_09_26_2017_linux_parallel
 
 # Cleanup the data so it doesn't flood the drive
-rm CHG* CHGCAR* PROCAR* WAVECAR* EIGENVAL* REPORT* IBZKPT* REPORT* DOSCAR.* XDATCAR* AECCAR*
-
 # directory_name=$(basename "$PWD")
 # tar -czvf "${directory_name}.tar.gz" --exclude="AECCAR*" .
 # find . ! -name "${directory_name}.tar.gz" ! -name 'OUTCAR' ! -name 'CONTCAR' ! -name 'vasprun.xml' ! -name 'starter*' ! -name 'AECCAR*' -type f -exec rm -f {} +
+find . -type f \( -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" \) -delete
