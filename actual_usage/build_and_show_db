@@ -13,8 +13,14 @@ path_to_utils="/home/hmai/utils/actual_usage"
 # Garching
 path_to_utils="/cmmc/u/hmai/personal_dev/utils/actual_usage"
 
+# Check if the --extract argument is provided
+extract_flag=""
+if [[ "$@" == *"--extract"* ]]; then
+    extract_flag="--extract"
+fi
+
 # Run the first Python script and append the output to py.output
 python "$path_to_utils/build_vasp_database.py" "$folder_path" "$@"
 
-# Run the second Python script and append the output to py.output
-python "$path_to_utils/summarise_vasp_database.py" "$folder_path"
+# Run the second Python script without the --extract argument
+python "$path_to_utils/summarise_vasp_database.py" "$folder_path" $extract_flag

@@ -68,13 +68,20 @@ def summarise_DDEC_data(directory, bond_order_threshold=0.05):
         ca = PMGChargemolAnalysis(directory, run_chargemol=False)
         bo_df = []
         element_list = []
-        
+
         for entries in ca.bond_order_dict:
             df = pd.DataFrame(ca.bond_order_dict[entries]["bonded_to"])
             df_thres = df[df["bond_order"] > bond_order_threshold]
-            bo_stats_df = get_stats(df_thres.bond_order.tolist(), "bond_order")
-            bo_stats_df = pd.DataFrame.from_dict(bo_stats_df, orient='index', columns=[str(entries)]).T
-            bo_stats_df["n_bonds"] = len(df_thres)
+            # This is a failsafe because certain atoms just don't bond (e.g. He/Ar)
+            if len(df_thres) == 0:
+                df_thres = df        
+                bo_stats_df = get_stats(df_thres.bond_order.tolist(), "bond_order")
+                bo_stats_df = pd.DataFrame.from_dict(bo_stats_df, orient='index', columns=[str(entries)]).T
+                bo_stats_df["n_bonds"] = 0
+            else:
+                bo_stats_df = get_stats(df_thres.bond_order.tolist(), "bond_order")
+                bo_stats_df = pd.DataFrame.from_dict(bo_stats_df, orient='index', columns=[str(entries)]).T
+                bo_stats_df["n_bonds"] = len(df_thres)
             bo_df.append(bo_stats_df)
             element_symbol = ca.bond_order_dict[entries]["element"].symbol
             element_list.append(element_symbol)
