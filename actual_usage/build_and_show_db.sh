@@ -9,7 +9,7 @@ folder_path="$1"
 shift 1  # Remove the first argument (folder_path) from the list of arguments
 
 # Setonix
-#path_to_utils="/scratch/pawsey0380/hmai/utils/actual_usage"
+path_to_utils="/home/hmai/utils/actual_usage"
 # Garching
 path_to_utils="/cmmc/u/hmai/personal_dev/utils/actual_usage"
 
