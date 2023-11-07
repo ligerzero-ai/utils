@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Specify the username
+username="hmai"
+
+# Get the list of job IDs and statuses for the specified user
+job_info=$(squeue -u $username -h -o "%i %t" | awk '{print $1, $2}')
+
+# Initialize a counter for running jobs
+running_job_count=0
+
+# Print the table header
+echo "Job ID   Job Status   Working Directory"
+echo "------   ----------   -----------------"
+
+# Loop through each line of job information
+while read -r job_line; do
+    job_id=$(echo "$job_line" | awk '{print $1}')
+    job_status=$(echo "$job_line" | awk '{print $2}')
+    working_directory=$(scontrol show job $job_id | grep "WorkDir" | awk -F'=' '{print $2}' | tr -d ' ')
+
+    echo "$job_id       $job_status          $working_directory"
+
+    if [ "$job_status" == "R" ]; then
+        ((running_job_count++))
+    fi
+done <<< "$job_info"
+
+echo "--------------------------"
+echo "Number of running jobs for $username: $running_job_count"
+

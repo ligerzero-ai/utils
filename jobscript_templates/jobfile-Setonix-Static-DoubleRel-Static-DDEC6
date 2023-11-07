@@ -28,7 +28,7 @@ jobs = [VaspJob(sys.argv[1:],
                 output_file=output_filename,
                 suffix = ".static_1",
                 final=False,
-                settings_override=[{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 500, "EDIFF": 1E-5, "KSPACING" : 0.5}}}]),
+                settings_override=[{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 500, "EDIFF": 1E-5, "KSPACING": 0.5}}}]),
         VaspJob(sys.argv[1:],
                 output_file=output_filename,
                 suffix = ".relax_1", final=False,
@@ -99,4 +99,4 @@ cd "$current_dir"
 
 # Cleanup the data so it doesn't flood the drive
 #rm CHG* CHGCAR* PROCAR* WAVECAR* EIGENVAL* REPORT* IBZKPT* REPORT* DOSCAR.relax_1 DOSCAR.relax_2
-find . -type f \( -name "CHG*" -o -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" -o -name "AECCAR*" -o -name "DOSCAR.*" \) -delete
+find . -type f \( -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" \) -delete
