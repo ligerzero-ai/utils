@@ -1,7 +1,11 @@
 from utils.vasp import DatabaseGenerator
 import argparse
+import warnings
+
 
 def main():
+    warnings.filterwarnings("ignore")
+    
     parser = argparse.ArgumentParser(description='Find and compress directories based on specified criteria.')
     parser.add_argument('directory', metavar='DIR', type=str, help='the directory to operate on')
     parser.add_argument('--extract', action='store_true', help='Extract directories during database generation')

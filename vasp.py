@@ -186,7 +186,7 @@ def parse_VASP_directory(directory,
     try:
         df = read_OUTCAR(filename=os.path.join(directory, OUTCAR_filename))
     except:
-        df = pd.DataFrame([[np.nan,
+        df = pd.DataFrame([[os.path.basename(directory),
                     directory,
                     np.nan,
                     np.nan,
@@ -377,14 +377,16 @@ class DatabaseGenerator():
                        keep_filenames_after_cleanup = [],
                        keep_filename_patterns_after_cleanup = [],
                        max_dir_count = None,
+                       filenames_to_qualify=["vasp.log", "INCAR", "POTCAR", "CONTCAR", "KPOINTS", "OUTCAR", "vasprun.xml"],
+                       all_present=False,
                        df_filename = None):
         
         start_time = time.time()
         
         if target_directory:
-            dirs = find_vasp_directories(parent_dir=target_directory, extract_tarballs=extract_directories)
+            dirs = find_vasp_directories(parent_dir=target_directory, extract_tarballs=extract_directories, all_present=all_present, filenames=filenames_to_qualify)
         else:
-            dirs = find_vasp_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories)
+            dirs = find_vasp_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories, all_present=all_present, filenames=filenames_to_qualify)
         
         print(f"The total number of vasp directories that we are building the database out of is {len(dirs)}")
         
@@ -401,7 +403,7 @@ class DatabaseGenerator():
                     db_filename = f"{i}.pkl"
                 pkl_filenames.append(os.path.join(self.parent_dir, db_filename))
                 df.to_pickle(os.path.join(self.parent_dir, db_filename))
-                step_taken_time = np.round(step_time - time.time(),3)
+                step_taken_time = np.round(time.time() - step_time ,3)
                 print(f"Step {i}: {step_taken_time} seconds taken for {len(chunks)} parse steps")
                 
             df = pd.concat([pd.read_pickle(partial_df) for partial_df in pkl_filenames])
