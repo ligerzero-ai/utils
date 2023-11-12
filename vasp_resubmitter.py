@@ -82,8 +82,8 @@ class CalculationConverger():
         return dirs_to_search_next_time
     
     def reconverge(self,
-                   dirpath,
-                   type="SDRS",
+                    dirpath,
+                    calc_type="SDRS",
                     HPC = "Setonix",
                     VASP_version = "5.4.4",
                     CPU = 128,
@@ -112,9 +112,9 @@ class CalculationConverger():
                 if os.path.exists(os.path.join(dirpath, og_file)):
                     shutil.move(os.path.join(dirpath, og_file), os.path.join(error_run_folder_path, og_file))
                
-        if type=="SDRS":
+        if calc_type=="SDRS":
             self.reconverge_SDRS(dirpath, latest_error_run_index)
-        elif type=="DRS":
+        elif calc_type=="DRS":
             self.reconverge_DRS(dirpath,
                                 latest_error_run_index,
                                 HPC = HPC,
