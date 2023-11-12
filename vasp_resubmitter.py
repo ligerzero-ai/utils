@@ -113,10 +113,9 @@ class CalculationConverger():
                     shutil.move(os.path.join(dirpath, og_file), os.path.join(error_run_folder_path, og_file))
                
         if calc_type=="SDRS":
-            self.reconverge_SDRS(dirpath, latest_error_run_index)
+            self.reconverge_SDRS(dirpath)
         elif calc_type=="DRS":
             self.reconverge_DRS(dirpath,
-                                latest_error_run_index,
                                 HPC = HPC,
                                 VASP_version = VASP_version,
                                 CPU = CPU,
@@ -133,7 +132,6 @@ class CalculationConverger():
     
     def reconverge_DRS(self,
                        dirpath,
-                       error_run_folder_path,
                        HPC = "Setonix",
                        VASP_version = "5.4.4",
                        CPU = 128,
@@ -163,7 +161,7 @@ class CalculationConverger():
                     output_path=dirpath)
         
         # Submit to the queue using the error_run_n folder
-        self.submit_to_queue(error_run_folder_path, target_script_name)
+        self.submit_to_queue(dirpath, target_script_name)
         
     def reconverge_SDRS(self, dirpath):
         static1_files_exist = any(f.endswith(".static_1") for f in os.listdir(dirpath))
