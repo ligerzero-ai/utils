@@ -34,6 +34,7 @@ class CalculationConverger():
         os.system(f"cd {dirpath} && {self.submission_command} {script_name}")
         
     def reconverge_all(self,
+                       calc_type = "DRS",
                        HPC = "Setonix",
                        VASP_version = "5.4.4",
                        CPU = 128,
@@ -58,7 +59,13 @@ class CalculationConverger():
                 if i + len(running_queued_job_directories) > self.max_submissions:
                     leftover_calcs_exceeding_queue_limit.append(dir)
                 else:
-                    self.reconverge(dir)
+                    self.reconverge(dir,
+                                    calc_type = calc_type,
+                                    HPC = HPC,
+                                    VASP_version = VASP_version,
+                                    CPU = CPU,
+                                    walltime = walltime,
+                                    cpu_per_node=cpu_per_node)
                     dirs_to_search_next_time.append(dir)
             else:
                 print(f"CONVERGED: {dir}")
@@ -74,7 +81,14 @@ class CalculationConverger():
                 
         return dirs_to_search_next_time
     
-    def reconverge(self, dirpath, type="SDRS"):
+    def reconverge(self,
+                   dirpath,
+                   type="SDRS",
+                    HPC = "Setonix",
+                    VASP_version = "5.4.4",
+                    CPU = 128,
+                    walltime = 24,
+                    cpu_per_node=128):
 
         # Check if there are any error* and *tar* files in the directory
         error_tar_files_exist = any("error" in f and "tar" in f for f in os.listdir(dirpath))
@@ -101,7 +115,13 @@ class CalculationConverger():
         if type=="SDRS":
             self.reconverge_SDRS(dirpath, latest_error_run_index)
         elif type=="DRS":
-            self.reconverge_DRS(dirpath, latest_error_run_index)
+            self.reconverge_DRS(dirpath,
+                                latest_error_run_index,
+                                HPC = HPC,
+                                VASP_version = VASP_version,
+                                CPU = CPU,
+                                walltime = walltime,
+                                cpu_per_node=cpu_per_node)
             
     # Function to find the latest error_run folder index
     def find_latest_error_run_index(self, dirpath):
