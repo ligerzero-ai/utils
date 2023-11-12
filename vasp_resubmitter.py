@@ -145,7 +145,7 @@ class CalculationConverger():
         if relax2_files_exist:
             script_name = os.path.join(self.script_template_dir, "DRS_Custodian_2.sh")
         elif relax1_files_exist:
-            script_name = os.path.join(self.script_template_dir, "DRS_Custodian_3.sh")
+            script_name = os.path.join(self.script_template_dir, "DRS_Custodian_1.sh")
         else:
             script_name = os.path.join(self.script_template_dir, "DRS_Custodian.sh")
 
