@@ -20,7 +20,10 @@ def main():
     else:
         max_dir_count = 2000  # Default value
     
-    df = datagen.build_database(max_dir_count=max_dir_count, extract_directories=args.extract)
+    df = datagen.build_database(max_dir_count=max_dir_count,
+                                filenames_to_qualify = ["INCAR", "POTCAR"],
+                                all_present=True,
+                                extract_directories=args.extract)
 
 if __name__ == '__main__':
     main()
