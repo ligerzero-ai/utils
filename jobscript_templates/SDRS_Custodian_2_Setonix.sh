@@ -1,9 +1,9 @@
 #!/bin/bash -l
-#SBATCH --nodes=1
-#SBATCH --ntasks=128
+#SBATCH --nodes={NODESTRING}
+#SBATCH --ntasks={CPUSTRING}
 #SBATCH --account=pawsey0380
-#SBATCH --job-name=S11-RA110-S3-32-iB-site-0.sh
-#SBATCH --time=24:00:00
+#SBATCH --job-name={CASESTRING}
+#SBATCH --time={WALLTIMESTRING}
 #SBATCH --partition=work
 #SBATCH --export=NONE
 #SBATCH --exclusive
@@ -12,7 +12,7 @@ module load vasp/5.4.4
 cd "$PBS_O_WORKDIR"
 
 ulimit -s unlimited
-run_cmd="srun --export=ALL -N 1 -n 128"
+run_cmd="srun --export=ALL -N {NODESTRING} -n {CPUSTRING}"
 
 source /scratch/pawsey0380/hmai/mambaforge/bin/activate pymatgen
 
@@ -59,7 +59,7 @@ DDEC6 <-- specifies the charge type (DDEC3 or DDEC6)
 .true. <-- specifies whether to compute bond orders or not
 </compute BOs>'>job_control.txt
 
-OMP_NUM_THREADS=128
+OMP_NUM_THREADS={CPUSTRING}
 export OMP_NUM_THREADS
 export PATH=$PATH:/home/hmai/chargemol_09_26_2017/atomic_densities/
 export PATH=$PATH:/home/hmai/chargemol_09_26_2017/chargemol_FORTRAN_09_26_2017/compiled_binaries/linux

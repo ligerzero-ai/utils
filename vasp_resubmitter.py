@@ -143,11 +143,11 @@ class CalculationConverger():
         relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
 
         if relax2_files_exist:
-            script_name = os.path.join(self.script_template_dir, "DRS_Custodian_2.sh")
+            script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_2_{HPC}.sh")
         elif relax1_files_exist:
-            script_name = os.path.join(self.script_template_dir, "DRS_Custodian_1.sh")
+            script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_1_{HPC}.sh")
         else:
-            script_name = os.path.join(self.script_template_dir, "DRS_Custodian.sh")
+            script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_{HPC}.sh")
 
         target_script_name = f"{os.path.basename(dirpath)}.sh"
         job = jobfile(file_path = script_name,
@@ -163,23 +163,39 @@ class CalculationConverger():
         # Submit to the queue using the error_run_n folder
         self.submit_to_queue(dirpath, target_script_name)
         
-    def reconverge_SDRS(self, dirpath):
+    def reconverge_SDRS(self,
+                        dirpath,
+                        HPC = "Setonix",
+                        VASP_version = "5.4.4",
+                        CPU = 128,
+                        walltime = 24,
+                        cpu_per_node=128
+                        ):
         static1_files_exist = any(f.endswith(".static_1") for f in os.listdir(dirpath))
         relax1_files_exist = any(f.endswith(".relax_1") for f in os.listdir(dirpath))
         relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
 
         # Check if .relax_1 and .relax2 files exist and use the static relaxation script
         if static1_files_exist:
-            script_name = os.path.join(self.script_template_dir, "SDRS_Custodian_1.sh")
+            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_1_{HPC}.sh")
         if relax2_files_exist:
-            script_name = os.path.join(self.script_template_dir, "SDRS_Custodian_2.sh")
+            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_2_{HPC}.sh")
         elif relax1_files_exist:
-            script_name = os.path.join(self.script_template_dir, "SDRS_Custodian_3.sh")
+            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_3_{HPC}.sh")
         else:
-            script_name = os.path.join(self.script_template_dir, "SDRS_Custodian.sh")
+            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
         
         target_script_name = f"{os.path.basename(dirpath)}.sh"
+        job = jobfile(file_path = script_name,
+                    HPC = HPC,
+                    VASP_version = VASP_version,
+                    CPU = CPU,
+                    walltime = walltime,
+                    cpu_per_node=cpu_per_node)
         
+        job.to_file(job_name=target_script_name,
+                    output_path=dirpath)
+                
         shutil.copy(script_name, os.path.join(dirpath, target_script_name))
     
         self.submit_to_queue(dirpath, target_script_name)
