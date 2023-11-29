@@ -97,6 +97,7 @@ class CalculationConverger():
         if error_tar_files_exist:
             # Create error_run_n folder
             latest_error_run_index = self.find_latest_error_run_index(dirpath)
+            print(latest_error_run_index)
             error_run_folder_name = f"error_run_{latest_error_run_index + 1}"
             error_run_folder_path = os.path.join(dirpath, error_run_folder_name)
             os.makedirs(error_run_folder_path)
@@ -128,11 +129,17 @@ class CalculationConverger():
                                 cpu_per_node=cpu_per_node)
             
     # Function to find the latest error_run folder index
-    def find_latest_error_run_index(self, dirpath):
+    def find_latest_error_run_index(dirpath):
         error_run_indices = [0]
         for f in os.listdir(dirpath):
-            if f.startswith("error_run_") and f[11:].isdigit():
-                error_run_indices.append(int(f[11:]))
+            if f.startswith("error_run_"):
+                print(f"error_run_ folder {f} found")
+                try:
+                    n = int(f.split(sep="error_run_")[-1])
+                    print(n)
+                    error_run_indices.append(n)
+                except ValueError as e:
+                    print(f"Exception occurred at {dirpath}: {e}")
         return max(error_run_indices)    
     
     def reconverge_DRS(self,
@@ -177,18 +184,25 @@ class CalculationConverger():
                         cpu_per_node=128
                         ):
         static1_files_exist = any(f.endswith(".static_1") for f in os.listdir(dirpath))
+        print(static1_files_exist)
         relax1_files_exist = any(f.endswith(".relax_1") for f in os.listdir(dirpath))
+        print(relax1_files_exist)
         relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
+        print(relax2_files_exist)
 
         # Check if .relax_1 and .relax2 files exist and use the static relaxation script
-        if static1_files_exist:
-            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_1_{HPC}.sh")
         if relax2_files_exist:
-            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_2_{HPC}.sh")
-        elif relax1_files_exist:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_3_{HPC}.sh")
+            print("Resuming after relax_2")
+        if relax1_files_exist:
+            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_2_{HPC}.sh")
+            print("Resuming after relax_1")
+        elif static1_files_exist:
+            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_1_{HPC}.sh")
+            print("Resuming after static_1")
         else:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
+            print("Starting from scratch (no viable checkpoint found)")
         
         target_script_name = f"{os.path.basename(dirpath)}.sh"
         job = jobfile(file_path = script_name,
@@ -200,8 +214,8 @@ class CalculationConverger():
         
         job.to_file(job_name=target_script_name,
                     output_path=dirpath)
-                    
-        self.submit_to_queue(dirpath, target_script_name)
+        print(dirpath)
+        #self.submit_to_queue(dirpath, target_script_name)
                  
     def reconverge_from_log_file(self):
         resubmit_log_file = os.path.join(self.parent_dir, "resubmit.log")        
