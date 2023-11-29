@@ -129,7 +129,7 @@ class CalculationConverger():
                                 cpu_per_node=cpu_per_node)
             
     # Function to find the latest error_run folder index
-    def find_latest_error_run_index(dirpath):
+    def find_latest_error_run_index(self, dirpath):
         error_run_indices = [0]
         for f in os.listdir(dirpath):
             if f.startswith("error_run_"):
