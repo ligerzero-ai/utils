@@ -91,7 +91,11 @@ def summarise_DDEC_data(directory, bond_order_threshold=0.05):
         ddec_df["element"] = element_list
         ddec_df["bond_order_sums"] = ca.bond_order_sums
         ddec_df["ddec_charges"] = ca.ddec_charges
-        ddec_df["cm5_charges"] = ca.cm5_charges
+        try:
+            ddec_df["cm5_charges"] = ca.cm5_charges
+        except Exception as e:
+            print(f"{directory}: FAILED DUE TO EXCEPTION {e}") 
+            ddec_df["cm5_charges"] = np.nan
         ddec_df["ddec_rcubed_moments"] = ca.ddec_rcubed_moments
         ddec_df["ddec_rfourth_moments"] = ca.ddec_rfourth_moments
         ddec_df["ddec_spin_moments"] = ca.ddec_spin_moments
