@@ -7,6 +7,7 @@ import pandas as pd
 from utils.vasp import find_vasp_directories, check_convergence
 from utils.generic import get_latest_file_iteration
 from utils.jobfile import jobfile
+
 def get_slurm_jobs_working_directories(username="hmai"):
     command = f"squeue -u {username} -o \"%i %Z\""
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -200,9 +201,7 @@ class CalculationConverger():
         
         job.to_file(job_name=target_script_name,
                     output_path=dirpath)
-                
-        shutil.copy(script_name, os.path.join(dirpath, target_script_name))
-    
+            
         self.submit_to_queue(dirpath, target_script_name)
                  
     def reconverge_from_log_file(self):
