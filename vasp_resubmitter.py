@@ -184,25 +184,25 @@ class CalculationConverger():
                         cpu_per_node=128
                         ):
         static1_files_exist = any(f.endswith(".static_1") for f in os.listdir(dirpath))
-        print(static1_files_exist)
+        # print(static1_files_exist)
         relax1_files_exist = any(f.endswith(".relax_1") for f in os.listdir(dirpath))
-        print(relax1_files_exist)
+        # print(relax1_files_exist)
         relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
-        print(relax2_files_exist)
+        # print(relax2_files_exist)
 
         # Check if .relax_1 and .relax2 files exist and use the static relaxation script
         if relax2_files_exist:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_3_{HPC}.sh")
-            print("Resuming after relax_2")
+            # print("Resuming after relax_2")
         if relax1_files_exist:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_2_{HPC}.sh")
-            print("Resuming after relax_1")
+            # print("Resuming after relax_1")
         elif static1_files_exist:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_1_{HPC}.sh")
-            print("Resuming after static_1")
+            # print("Resuming after static_1")
         else:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
-            print("Starting from scratch (no viable checkpoint found)")
+            # print("Starting from scratch (no viable checkpoint found)")
         
         target_script_name = f"{os.path.basename(dirpath)}.sh"
         job = jobfile(file_path = script_name,
@@ -214,8 +214,8 @@ class CalculationConverger():
         
         job.to_file(job_name=target_script_name,
                     output_path=dirpath)
-        print(dirpath)
-        #self.submit_to_queue(dirpath, target_script_name)
+        #print(dirpath)
+        self.submit_to_queue(dirpath, target_script_name)
                  
     def reconverge_from_log_file(self):
         resubmit_log_file = os.path.join(self.parent_dir, "resubmit.log")        
