@@ -113,7 +113,12 @@ class CalculationConverger():
                     shutil.move(os.path.join(dirpath, og_file), os.path.join(error_run_folder_path, og_file))
                
         if calc_type=="SDRS":
-            self.reconverge_SDRS(dirpath)
+            self.reconverge_SDRS(dirpath,
+                                HPC = HPC,
+                                VASP_version = VASP_version,
+                                CPU = CPU,
+                                walltime = walltime,
+                                cpu_per_node=cpu_per_node)
         elif calc_type=="DRS":
             self.reconverge_DRS(dirpath,
                                 HPC = HPC,
