@@ -200,9 +200,7 @@ class CalculationConverger():
         
         job.to_file(job_name=target_script_name,
                     output_path=dirpath)
-                
-        shutil.copy(script_name, os.path.join(dirpath, target_script_name))
-    
+                    
         self.submit_to_queue(dirpath, target_script_name)
                  
     def reconverge_from_log_file(self):
