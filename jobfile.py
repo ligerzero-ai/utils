@@ -1,7 +1,7 @@
 import os
 import shutil
 
-def create_folder(directory, delete_folder=False):
+def create_folder(directory, delete_folder=False, quiet=True):
     """
     Create a folder if it doesn't exist, and optionally delete it if it does.
 
@@ -14,16 +14,19 @@ def create_folder(directory, delete_folder=False):
     """
     if os.path.exists(directory):
         if delete_folder:
-            print("Removing directory...")
+            if not quiet:
+                print("Removing directory...")
             if os.path.isdir(directory):
                 shutil.rmtree(directory)
             elif os.path.isfile(directory):
                 os.remove(directory)
             else:
-                print("Given path is a special file - manually remove")
+                if not quiet:
+                    print("Given path is a special file - manually remove")
         else:
-            # Folder already exists, no replacement/deletion
-            print("No replacement/deletion created due to folder existing")
+            if not quiet:
+                # Folder already exists, no replacement/deletion
+                print("No replacement/deletion created due to folder existing")
     else:
         os.makedirs(directory)
                 
