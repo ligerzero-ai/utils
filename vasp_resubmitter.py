@@ -97,7 +97,7 @@ class CalculationConverger():
         if error_tar_files_exist:
             # Create error_run_n folder
             latest_error_run_index = self.find_latest_error_run_index(dirpath)
-            print(latest_error_run_index)
+            #print(latest_error_run_index)
             error_run_folder_name = f"error_run_{latest_error_run_index + 1}"
             error_run_folder_path = os.path.join(dirpath, error_run_folder_name)
             os.makedirs(error_run_folder_path)
@@ -133,10 +133,9 @@ class CalculationConverger():
         error_run_indices = [0]
         for f in os.listdir(dirpath):
             if f.startswith("error_run_"):
-                print(f"error_run_ folder {f} found")
+                # print(f"error_run_ folder {f} found")
                 try:
                     n = int(f.split(sep="error_run_")[-1])
-                    print(n)
                     error_run_indices.append(n)
                 except ValueError as e:
                     print(f"Exception occurred at {dirpath}: {e}")
