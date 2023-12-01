@@ -217,9 +217,9 @@ def get_cp_coords_solute(structure, host_elements, axis, threshold=5, tolerance=
     """
     min_max = get_min_max_cp_coords_solute(structure, host_elements, axis, fractional=fractional, threshold=threshold)
     if fractional:
-        atomic_layers = get_unique_values_in_nth_value(struct.frac_coords, -1, tolerance=tolerance)
+        atomic_layers = get_unique_values_in_nth_value(structure.frac_coords, -1, tolerance=tolerance)
     else:
-        atomic_layers = get_unique_values_in_nth_value(struct.cart_coords, -1, tolerance=tolerance)
+        atomic_layers = get_unique_values_in_nth_value(structure.cart_coords, -1, tolerance=tolerance)
     cp_list = compute_average_pairs(atomic_layers)
     min_cp_thres = min_max[0]
     max_cp_thres = min_max[1]
