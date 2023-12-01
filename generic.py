@@ -1,11 +1,13 @@
 import os
-import tarfile
+
 from multiprocessing import Pool, cpu_count
+
 import fnmatch
-
 from functools import wraps
-
 from utils.parallel import parallelise
+
+import tarfile
+import zipfile
 
 from monty.os.path import find_exts
 from monty.io import zopen
@@ -191,30 +193,61 @@ def find_directories_with_files(parent_dir, filenames, all_present=True):
 
     return directories
 
-def extract_tarball(tarball_filepath, extraction_path):
+def extract_tarball(archive_filepath, extraction_path):
     """
-    Extracts the contents of a tarball file to the specified extraction path.
+    Extracts the contents of an archive file to the specified extraction path.
 
     Parameters:
-        tarball_filepath (str): The path of the tarball file to extract.
-        extraction_path (str): The path where the contents of the tarball will be extracted.
+        archive_filepath (str): The path of the archive file to extract.
+        extraction_path (str): The path where the contents of the archive will be extracted.
 
     Usage:
-        # Extract a tarball file to a specific extraction path
-        extract_tarball("/path/to/tarball.tar.gz", "/path/to/extraction")
-
-    Note:
-        - The function opens the tarball file using the `tarfile` module with read mode and gzip compression.
-        - It extracts all the contents of the tarball to the specified extraction path.
-        - The directory structure within the tarball will be preserved in the extraction process.
+        # Extract an archive file to a specific extraction path
+        extract_archive("/path/to/archive.tar.gz", "/path/to/extraction")
     """
     try:
-        with tarfile.open(tarball_filepath, "r:gz") as tar:
-            tar.extractall(extraction_path)
-    except:
-        # EOFError
-        # EOFError: Compressed file ended before the end-of-stream marker was reached
-        a = 0
+        if archive_filepath.endswith(".tar.gz") or archive_filepath.endswith(".tgz"):
+            with tarfile.open(archive_filepath, "r:gz") as tar:
+                tar.extractall(extraction_path)
+        elif archive_filepath.endswith(".tar.bz2"):
+            with tarfile.open(archive_filepath, "r:bz2") as tar:
+                tar.extractall(extraction_path)
+        elif archive_filepath.endswith(".tar"):
+            with tarfile.open(archive_filepath, "r:") as tar:
+                tar.extractall(extraction_path)
+        elif archive_filepath.endswith(".zip"):
+            with zipfile.ZipFile(archive_filepath, "r") as zip_ref:
+                zip_ref.extractall(extraction_path)
+        else:
+            raise ValueError("Unsupported archive format")
+
+    except Exception as e:
+        print(f"Error extracting archive: {e}")
+
+# def extract_tarball(tarball_filepath, extraction_path):
+#     """
+#     Extracts the contents of a tarball file to the specified extraction path.
+
+#     Parameters:
+#         tarball_filepath (str): The path of the tarball file to extract.
+#         extraction_path (str): The path where the contents of the tarball will be extracted.
+
+#     Usage:
+#         # Extract a tarball file to a specific extraction path
+#         extract_tarball("/path/to/tarball.tar.gz", "/path/to/extraction")
+
+#     Note:
+#         - The function opens the tarball file using the `tarfile` module with read mode and gzip compression.
+#         - It extracts all the contents of the tarball to the specified extraction path.
+#         - The directory structure within the tarball will be preserved in the extraction process.
+#     """
+#     try:
+#         with tarfile.open(tarball_filepath, "r:gz") as tar:
+#             tar.extractall(extraction_path)
+#     except:
+#         # EOFError
+#         # EOFError: Compressed file ended before the end-of-stream marker was reached
+#         a = 0
 
 def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz")):
     """
@@ -238,6 +271,7 @@ def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz")):
         - The function extracts the tarball files in parallel, preserving the directory structure within the tarballs.
     """
     filepaths = find_exts(top=parent_dir, exts=extensions)
+    print(filepaths)
     extraction_filepaths = [os.path.dirname(filepath) for filepath in filepaths]
     parallelise(extract_tarball, filepaths, extraction_filepaths)
 
