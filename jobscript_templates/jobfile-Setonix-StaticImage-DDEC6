@@ -60,3 +60,4 @@ $run_cmd Chargemol_09_26_2017_linux_parallel
 # tar -czvf "${directory_name}.tar.gz" --exclude="AECCAR*" .
 # find . ! -name "${directory_name}.tar.gz" ! -name 'OUTCAR' ! -name 'CONTCAR' ! -name 'vasprun.xml' ! -name 'starter*' ! -name 'AECCAR*' -type f -exec rm -f {} +
 find . -type f \( -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" \) -delete
+find . -type f \( -name "CHG*" -o -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" -o -name "AECCAR*" -o -name "DOSCAR.*" \) -delete

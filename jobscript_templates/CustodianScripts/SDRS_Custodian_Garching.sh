@@ -12,38 +12,7 @@ module load intel/19.1.0 impi/2019.6
 module load vasp/5.4.4-buildFeb20
 module load pyiron/dev
 
-echo 'import sys
-
-from custodian.custodian import Custodian
-from custodian.vasp.handlers import VaspErrorHandler, UnconvergedErrorHandler, NonConvergingErrorHandler, PositiveEnergyErrorHandler
-from custodian.vasp.jobs import VaspJob
-
-output_filename = "vasp.log"
-handlers = [VaspErrorHandler(output_filename=output_filename), UnconvergedErrorHandler(), NonConvergingErrorHandler(), PositiveEnergyErrorHandler()]
-jobs = [VaspJob(sys.argv[1:],
-                output_file=output_filename,
-                suffix = ".relax_1", final=False,
-                settings_override=[{"file": "CHGCAR", "action": {"_file_copy": {"dest": "CHGCAR.static_1"}}},
-                                   {"file": "AECCAR0", "action": {"_file_copy": {"dest": "AECCAR0.static_1"}}},
-                                   {"file": "AECCAR1", "action": {"_file_copy": {"dest": "AECCAR1.static_1"}}},
-                                   {"file": "AECCAR2", "action": {"_file_copy": {"dest": "AECCAR2.static_1"}}},
-                    {"dict": "INCAR", "action": {"_set": {"NSW": 100, "LAECHG": False, "LCHARGE": False, "NELM": 80, "EDIFF": 1E-4, "KSPACING" : 0.9}}}],
-                copy_magmom=True),
-        VaspJob(sys.argv[1:],
-                output_file=output_filename,
-                suffix = ".relax_2",
-                final=False,
-                settings_override = [{"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}},
-                                     {"dict": "INCAR", "action": {"_set": {"KSPACING": 0.5, "EDIFF": 1E-5}}}],
-                copy_magmom=True),
-        VaspJob(sys.argv[1:],
-                output_file=output_filename,
-                suffix = "",
-                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 400, "EDIFF": 1E-5}}},
-                                     {"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}}])]
-c = Custodian(handlers, jobs, max_errors=10)
-c.run()'>custodian_vasp.py
-
+echo '{CUSTODIANSTRING}'>custodian_vasp.py
 
 if [ $(hostname) == 'cmti001' ];
 then

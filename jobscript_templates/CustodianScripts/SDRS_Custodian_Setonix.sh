@@ -16,28 +16,7 @@ run_cmd="srun --export=ALL -N {NODESTRING} -n {CPUSTRING}"
 
 source /scratch/pawsey0380/hmai/mambaforge/bin/activate pymatgen
 
-echo 'import sys
-
-from custodian.custodian import Custodian
-from custodian.vasp.handlers import VaspErrorHandler, UnconvergedErrorHandler, NonConvergingErrorHandler, PositiveEnergyErrorHandler
-from custodian.vasp.jobs import VaspJob
-
-output_filename = "vasp.log"
-handlers = [VaspErrorHandler(output_filename=output_filename), UnconvergedErrorHandler(), NonConvergingErrorHandler(), PositiveEnergyErrorHandler()]
-jobs = [VaspJob(sys.argv[1:],
-                output_file=output_filename,
-                suffix = ".relax_2",
-                final=False,
-                settings_override = [{"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}},
-                                     {"dict": "INCAR", "action": {"_set": {"KSPACING": 0.5, "EDIFF": 1E-5, "EDIFFG": -0.01}}}],
-                copy_magmom=True),
-        VaspJob(sys.argv[1:],
-                output_file=output_filename,
-                suffix = "",
-                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 400, "EDIFF": 1E-5}}},
-                                     {"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}}])]
-c = Custodian(handlers, jobs, max_errors=10)
-c.run()'>custodian_vasp.py
+echo '{CUSTODIANSTRING}'>custodian_vasp.py
 
 python custodian_vasp.py $run_cmd vasp_std &> vasp.log
 
@@ -57,13 +36,32 @@ DDEC6 <-- specifies the charge type (DDEC3 or DDEC6)
 </charge type>
 <compute BOs>
 .true. <-- specifies whether to compute bond orders or not
-</compute BOs>' > job_control.txt
+</compute BOs>'>job_control.txt
 
 OMP_NUM_THREADS={CPUSTRING}
 export OMP_NUM_THREADS
 export PATH=$PATH:/home/hmai/chargemol_09_26_2017/atomic_densities/
 export PATH=$PATH:/home/hmai/chargemol_09_26_2017/chargemol_FORTRAN_09_26_2017/compiled_binaries/linux
+
+current_dir=$(pwd)
+
+mkdir DDEC6_relaxed
+mv AECCAR0 AECCAR1 AECCAR2 CHGCAR DDEC6_relaxed/
+cp job_control.txt POTCAR DDEC6_relaxed/
+cd DDEC6_relaxed
 $run_cmd Chargemol_09_26_2017_linux_parallel
+cd "$current_dir"
+
+mkdir DDEC6_initial
+mv AECCAR0.static_1 DDEC6_initial/AECCAR0
+mv AECCAR1.static_1 DDEC6_initial/AECCAR1
+mv AECCAR2.static_1 DDEC6_initial/AECCAR2
+mv CHGCAR.static_1 DDEC6_initial/CHGCAR
+cp job_control.txt POTCAR DDEC6_initial/
+cd DDEC6_initial
+$run_cmd Chargemol_09_26_2017_linux_parallel
+cd "$current_dir"
 
 # Cleanup the data so it doesn't flood the drive
-find . -type f \( -name "CHG.*" -o -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" -o -name "AECCAR*" -o -name "DOSCAR.*" \) -delete
+#rm CHG* CHGCAR* PROCAR* WAVECAR* EIGENVAL* REPORT* IBZKPT* REPORT* DOSCAR.relax_1 DOSCAR.relax_2
+find . -type f \( -name "CHG*" -o -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" -o -name "AECCAR*" -o -name "DOSCAR.*" \) -delete

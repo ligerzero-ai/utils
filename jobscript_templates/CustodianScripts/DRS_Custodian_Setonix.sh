@@ -16,21 +16,7 @@ run_cmd="srun --export=ALL -N {NODESTRING} -n {CPUSTRING}"
 
 source /scratch/pawsey0380/hmai/mambaforge/bin/activate pymatgen
 
-echo 'import sys
-
-from custodian.custodian import Custodian
-from custodian.vasp.handlers import VaspErrorHandler, UnconvergedErrorHandler, NonConvergingErrorHandler, PositiveEnergyErrorHandler
-from custodian.vasp.jobs import VaspJob
-
-output_filename = "vasp.log"
-handlers = [VaspErrorHandler(output_filename=output_filename), UnconvergedErrorHandler(), NonConvergingErrorHandler(), PositiveEnergyErrorHandler()]
-jobs = [VaspJob(sys.argv[1:],
-                output_file=output_filename,
-                suffix = "",
-                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 550, "EDIFF": 1E-5}}},
-                                     {"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}}])]
-c = Custodian(handlers, jobs, max_errors=10)
-c.run()'>custodian_vasp.py
+echo '{CUSTODIANSTRING}'>custodian_vasp.py
 
 python custodian_vasp.py $run_cmd vasp_std &> vasp.log
 

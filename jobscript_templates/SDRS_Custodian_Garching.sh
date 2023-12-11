@@ -41,11 +41,13 @@ jobs = [VaspJob(sys.argv[1:],
                 settings_override = [{"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}},
                                      {"dict": "INCAR", "action": {"_set": {"KSPACING": 0.5, "EDIFF": 1E-5}}}],
                 copy_magmom=True),
-        VaspJob(sys.argv[1:],
-                output_file=output_filename,
-                suffix = "",
-                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 400, "EDIFF": 1E-5}}},
-                                     {"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}}])]
+        VaspJob(sys.argv[1:], output_file=output_filename, suffix = "",
+                settings_override = [{"dict": "INCAR",
+                        "action": {
+                                "_set":
+                                {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 500, "ALGO": "VeryFast", "EDIFF": 1E-5}
+                                }
+                        }])]
 c = Custodian(handlers, jobs, max_errors=10)
 c.run()'>custodian_vasp.py
 

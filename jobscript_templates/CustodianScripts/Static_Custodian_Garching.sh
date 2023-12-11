@@ -8,26 +8,11 @@
 #SBATCH --job-name={CASESTRING}
 #SBATCH --get-user-env=L
 
-module load intel/19.1.0 impi/2019.6
-module load vasp/5.4.4-buildFeb20
-module load pyiron/dev
+module load intel/19.1.0 impi/2019.6 
+module load vasp/5.4.4-buildFeb20 
+module load pyiron/dev 
 
-echo 'import sys
-
-from custodian.custodian import Custodian
-from custodian.vasp.handlers import VaspErrorHandler, UnconvergedErrorHandler, NonConvergingErrorHandler, PositiveEnergyErrorHandler
-from custodian.vasp.jobs import VaspJob
-
-output_filename = "vasp.log"
-handlers = [VaspErrorHandler(output_filename=output_filename), UnconvergedErrorHandler(), NonConvergingErrorHandler(), PositiveEnergyErrorHandler()]
-jobs = [VaspJob(sys.argv[1:],
-                output_file=output_filename,
-                suffix = "",
-                settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 0, "LAECHG": True, "LCHARGE": True, "NELM": 400, "EDIFF": 1E-5}}},
-                                     {"file": "CONTCAR", "action": {"_file_copy": {"dest": "POSCAR"}}}])]
-c = Custodian(handlers, jobs, max_errors=10)
-c.run()'>custodian_vasp.py
-
+echo '{CUSTODIANSTRING}'>custodian_vasp.py
 
 if [ $(hostname) == 'cmti001' ];
 then
@@ -60,25 +45,8 @@ OMP_NUM_THREADS={CPUSTRING}
 export OMP_NUM_THREADS
 export PATH=$PATH:/cmmc/u/hmai/chargemol_09_26_2017/atomic_densities/
 export PATH=$PATH:/cmmc/u/hmai/chargemol_09_26_2017/chargemol_FORTRAN_09_26_2017/compiled_binaries/linux
-
-current_dir=$(pwd)
-
-mkdir DDEC6_relaxed
-mv AECCAR0 AECCAR1 AECCAR2 CHGCAR DDEC6_relaxed/
-cp job_control.txt POTCAR DDEC6_relaxed/
-cd DDEC6_relaxed
 srun --export=ALL -N {NODESTRING} -n {CPUSTRING} Chargemol_09_26_2017_linux_parallel
-cd "$current_dir"
-
-mkdir DDEC6_initial
-mv AECCAR0.static_1 DDEC6_initial/AECCAR0
-mv AECCAR1.static_1 DDEC6_initial/AECCAR1
-mv AECCAR2.static_1 DDEC6_initial/AECCAR2
-mv CHGCAR.static_1 DDEC6_initial/CHGCAR
-cp job_control.txt POTCAR DDEC6_initial/
-cd DDEC6_initial
-srun --export=ALL -N {NODESTRING} -n {CPUSTRING} Chargemol_09_26_2017_linux_parallel
-cd "$current_dir"
 
 # Cleanup the data so it doesn't flood the drive
-find . -type f \( -name "CHG*" -o -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" -o -name "AECCAR*" -o -name "DOSCAR.*" \) -delete
+find . -type f \( -name "CHG.*" -o -name "WAVECAR*" -o -name "PROCAR*" -o -name "IBZKPT*" -o -name "REPORT*" -o -name "EIGENVAL*" -o -name "AECCAR*" -o -name "DOSCAR.*" \) -delete
+
