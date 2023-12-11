@@ -112,7 +112,13 @@ class CalculationConverger():
             for og_file in orig_files_to_preserve:
                 if os.path.exists(os.path.join(dirpath, og_file)):
                     shutil.move(os.path.join(dirpath, og_file), os.path.join(error_run_folder_path, og_file))
-               
+        if calc_type=="static":
+            self.reconverge_static(dirpath,
+                    HPC = HPC,
+                    VASP_version = VASP_version,
+                    CPU = CPU,
+                    walltime = walltime,
+                    cpu_per_node=cpu_per_node)
         if calc_type=="SDRS":
             self.reconverge_SDRS(dirpath,
                                 HPC = HPC,
@@ -141,6 +147,43 @@ class CalculationConverger():
                     print(f"Exception occurred at {dirpath}: {e}")
         return max(error_run_indices)    
     
+    def reconverge_static(self,
+                       dirpath,
+                       HPC = "Setonix",
+                       VASP_version = "5.4.4",
+                       CPU = 128,
+                       walltime = 24,
+                       cpu_per_node=128
+                       ):
+
+        # User inputs for the SDRS template
+        user_inputs = {
+            '{VASPOUTPUTFILENAME}': 'vasp.log',
+            '{MAXCUSTODIANERRORS}': "20"
+        }
+
+        # Generate a string representation from template_Static.py
+        template_path_static = os.path.join(self.script_template_dir,"template_Static.py")
+        custodian_string = jobfile._replace_fields(template_path_static, user_inputs)
+        script_name = os.path.join(self.script_template_dir, f"Static_Custodian_{HPC}.sh")
+        
+        job = jobfile(file_path = script_name,
+                    HPC = HPC,
+                    VASP_version = VASP_version,
+                    CPU = CPU,
+                    walltime = walltime,
+                    cpu_per_node=cpu_per_node,
+                    generic_insert_field=["CUSTODIANSTRING"],
+                    generic_insert=[custodian_string])
+        
+        target_script_name = f"{os.path.basename(dirpath)}.sh"
+        job.to_file(job_name=target_script_name,
+                    output_path=dirpath)
+        
+        print(job.to_string())
+        # Submit to the queue using the error_run_n folder
+        #self.submit_to_queue(dirpath, target_script_name)    
+        
     def reconverge_DRS(self,
                        dirpath,
                        HPC = "Setonix",
@@ -155,21 +198,39 @@ class CalculationConverger():
 
         if relax2_files_exist:
             script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_2_{HPC}.sh")
+            stages_left = 1
         elif relax1_files_exist:
             script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_1_{HPC}.sh")
+            stages_left = 2
         else:
             script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_{HPC}.sh")
+            stages_left = 3
 
+        # User inputs for the SDRS template
+        user_inputs = {
+            '{VASPOUTPUTFILENAME}': 'vasp.log',
+            '{MAXCUSTODIANERRORS}': "15",
+            '{STAGES_LEFT}': f'{stages_left}',
+        }
+
+        # Generate a string representation from template_Static.py
+        template_path = os.path.join(self.script_template_dir,"template_SDRS.py")
+        custodian_string = jobfile._replace_fields(template_path, user_inputs)
+        
+        script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
         target_script_name = f"{os.path.basename(dirpath)}.sh"
+        
         job = jobfile(file_path = script_name,
                     HPC = HPC,
                     VASP_version = VASP_version,
                     CPU = CPU,
                     walltime = walltime,
-                    cpu_per_node=cpu_per_node)
+                    cpu_per_node = cpu_per_node,
+                    generic_insert_field = ["CUSTODIANSTRING"],
+                    generic_insert = [custodian_string])
         
-        job.to_file(job_name=target_script_name,
-                    output_path=dirpath)
+        job.to_file(job_name = target_script_name,
+                    output_path = dirpath)
         
         # Submit to the queue using the error_run_n folder
         self.submit_to_queue(dirpath, target_script_name)
@@ -192,28 +253,48 @@ class CalculationConverger():
         # Check if .relax_1 and .relax2 files exist and use the static relaxation script
         if relax2_files_exist:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_3_{HPC}.sh")
+            stages_left = 1
             # print("Resuming after relax_2")
         if relax1_files_exist:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_2_{HPC}.sh")
+            stages_left = 2
             # print("Resuming after relax_1")
         elif static1_files_exist:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_1_{HPC}.sh")
+            stages_left = 3
             # print("Resuming after static_1")
         else:
             script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
-            # print("Starting from scratch (no viable checkpoint found)")
+            stages_left = 4
+            # print("Starting from scratch (no viable checkpoint found)")        
+
+        # User inputs for the SDRS template
+        user_inputs = {
+            '{VASPOUTPUTFILENAME}': 'vasp.log',
+            '{MAXCUSTODIANERRORS}': "15",
+            '{STAGES_LEFT}': f'{stages_left}',
+        }
+
+        # Generate a string representation from template_Static.py
+        template_path = os.path.join(self.script_template_dir,"template_SDRS.py")
+        custodian_string = jobfile._replace_fields(template_path, user_inputs)
         
+        script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
         target_script_name = f"{os.path.basename(dirpath)}.sh"
+        
         job = jobfile(file_path = script_name,
                     HPC = HPC,
                     VASP_version = VASP_version,
                     CPU = CPU,
                     walltime = walltime,
-                    cpu_per_node=cpu_per_node)
+                    cpu_per_node = cpu_per_node,
+                    generic_insert_field = ["CUSTODIANSTRING"],
+                    generic_insert = [custodian_string])
         
-        job.to_file(job_name=target_script_name,
-                    output_path=dirpath)
-        #print(dirpath)
+        job.to_file(job_name = target_script_name,
+                    output_path = dirpath)
+        
+        # Submit to the queue using the error_run_n folder
         self.submit_to_queue(dirpath, target_script_name)
                  
     def reconverge_from_log_file(self):
