@@ -41,6 +41,7 @@ class CalculationConverger():
                        walltime = 24,
                        cpu_per_node=128):
         non_converged = self.reconverge_from_log_file()
+        non_converged = [item for item in non_converged if self.parent_dir in item]
         running_jobs_df = get_slurm_jobs_working_directories(self.user)
         running_queued_job_directories = running_jobs_df["Working Directory"].to_list()
         
@@ -180,9 +181,9 @@ class CalculationConverger():
         job.to_file(job_name=target_script_name,
                     output_path=dirpath)
         
-        print(job.to_string())
+        # print(job.to_string())
         # Submit to the queue using the error_run_n folder
-        #self.submit_to_queue(dirpath, target_script_name)    
+        self.submit_to_queue(dirpath, target_script_name)    
         
     def reconverge_DRS(self,
                        dirpath,
@@ -307,7 +308,7 @@ class CalculationConverger():
             largest_n = get_latest_file_iteration(self.parent_dir, "resubmit.log_")
             # Rename the existing resubmit.log to resubmit.log_n
             new_log_filename = f"resubmit.log_{largest_n + 1}"
-            os.rename(resubmit_log_file, new_log_filename)
+            os.rename(resubmit_log_file, os.path.join(self.parent_dir, new_log_filename))
             
             return non_converged_dirs
         else:
