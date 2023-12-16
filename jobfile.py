@@ -160,7 +160,7 @@ class jobfile:
 
         # Replace specified fields with user inputs
         for field, value in user_inputs.items():
-            template_content = template_content.replace(f"{{{field}}}", str(value))
+            template_content = template_content.replace(field, str(value))
 
         return template_content
     

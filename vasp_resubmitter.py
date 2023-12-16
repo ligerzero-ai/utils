@@ -159,7 +159,7 @@ class CalculationConverger():
 
         # User inputs for the SDRS template
         user_inputs = {
-            '{VASPOUTPUTFILENAME}': 'vasp.log',
+            '{VASPOUTPUTFILENAME}': '"vasp.log"',
             '{MAXCUSTODIANERRORS}': "20"
         }
 
@@ -174,7 +174,7 @@ class CalculationConverger():
                     CPU = CPU,
                     walltime = walltime,
                     cpu_per_node=cpu_per_node,
-                    generic_insert_field=["CUSTODIANSTRING"],
+                    generic_insert_field=["{CUSTODIANSTRING}"],
                     generic_insert=[custodian_string])
         
         target_script_name = f"{os.path.basename(dirpath)}.sh"
@@ -209,7 +209,7 @@ class CalculationConverger():
 
         # User inputs for the SDRS template
         user_inputs = {
-            '{VASPOUTPUTFILENAME}': 'vasp.log',
+            '{VASPOUTPUTFILENAME}': '"vasp.log"',
             '{MAXCUSTODIANERRORS}': "15",
             '{STAGES_LEFT}': f'{stages_left}',
         }
@@ -227,7 +227,7 @@ class CalculationConverger():
                     CPU = CPU,
                     walltime = walltime,
                     cpu_per_node = cpu_per_node,
-                    generic_insert_field = ["CUSTODIANSTRING"],
+                    generic_insert_field = ["{CUSTODIANSTRING}"],
                     generic_insert = [custodian_string])
         
         job.to_file(job_name = target_script_name,
@@ -271,7 +271,7 @@ class CalculationConverger():
 
         # User inputs for the SDRS template
         user_inputs = {
-            '{VASPOUTPUTFILENAME}': 'vasp.log',
+            '{VASPOUTPUTFILENAME}': '"vasp.log"',
             '{MAXCUSTODIANERRORS}': "15",
             '{STAGES_LEFT}': f'{stages_left}',
         }
@@ -289,7 +289,7 @@ class CalculationConverger():
                     CPU = CPU,
                     walltime = walltime,
                     cpu_per_node = cpu_per_node,
-                    generic_insert_field = ["CUSTODIANSTRING"],
+                    generic_insert_field = ["{CUSTODIANSTRING}"],
                     generic_insert = [custodian_string])
         
         job.to_file(job_name = target_script_name,

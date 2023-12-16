@@ -3,7 +3,7 @@ import numpy as np
 
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from maml.describers import SmoothOverlapAtomicPosition
+#from maml.describers import SmoothOverlapAtomicPosition
 
 from pymatgen.analysis.local_env import VoronoiNN
 from pymatgen.core import Structure
