@@ -22,7 +22,9 @@ from utils.parallel import parallelise
 def find_vasp_directories(parent_dir,
                           filenames=["vasp.log", "INCAR", "POTCAR", "CONTCAR", "KPOINTS", "OUTCAR", "vasprun.xml"],
                           all_present=False,
-                          extract_tarballs=True):
+                          extract_tarballs=True,
+                          tarball_extensions=(".tar.gz"),
+                          ):
     """
     Finds directories in a parent directory that contain specified files.
 
@@ -50,7 +52,7 @@ def find_vasp_directories(parent_dir,
     """
     if extract_tarballs:
         gen_tools.find_and_extract_files_from_tarballs_parallel(parent_dir=parent_dir, 
-                                                                extension=".tar.gz",
+                                                                extension=tarball_extensions,
                                                                 filenames=filenames,                                                            
                                                                 suffix=None,
                                                                 prefix=None)
@@ -373,6 +375,7 @@ class DatabaseGenerator():
     def build_database(self,
                        target_directory = None,
                        extract_directories = False,
+                       tarball_extensions = (".tar.gz"),
                        cleanup=False,
                        keep_filenames_after_cleanup = [],
                        keep_filename_patterns_after_cleanup = [],

@@ -295,13 +295,21 @@ def extract_files_from_tarball(tarball_filepath, filenames, suffix=None, prefix=
         extract_files_from_tarball("/path/to/tarball.tar.gz", ["file1.txt", "file2.jpg"], suffix="extracted")
 
     Note:
-        - The function opens the tarball file using the `tarfile` module with read mode and gzip compression.
+        - The function opens the tarball file using the `tarfile` module with read mode and gzip or bzip2 compression.
         - It iterates over the specified `filenames` and extracts the matching files from the tarball to the directory containing the tarball file.
         - If the extracted filename starts with "./", it is modified to remove the leading "./".
         - If `suffix` is provided, the extracted file is renamed by appending the suffix to the base filename.
         - The function returns a list of the extracted filepaths.
     """
-    with tarfile.open(tarball_filepath, "r:gz") as tar:
+    compression_type = None
+    if tarball_filepath.endswith(".gz"):
+        compression_type = "gz"
+    elif tarball_filepath.endswith(".bz2"):
+        compression_type = "bz2"
+    else:
+        raise ValueError("Unsupported compression type. Only .gz and .bz2 are supported.")
+
+    with tarfile.open(tarball_filepath, f"r:{compression_type}") as tar:
         extracted_filepaths = []
         for filename in filenames:
             try:
@@ -321,8 +329,8 @@ def extract_files_from_tarball(tarball_filepath, filenames, suffix=None, prefix=
                         os.rename(extracted_filepath, new_path)
                         extracted_filepath = new_path
                     extracted_filepaths.append(extracted_filepath)
-            except:
-                a = 0
+            except Exception as e:
+                print(f"Error extracting {filename}: {e}")
 
     return extracted_filepaths
 
@@ -373,7 +381,7 @@ def extract_files_from_tarballs_parallel(tarball_paths, filenames, suffix=False)
     parallelise(extract_files_from_tarball, tarball_paths, filenames, suffixes)
 
 def find_and_extract_files_from_tarballs_parallel(parent_dir,
-                                                  extension=".tar.gz",
+                                                  extension=(".tar.gz"),
                                                   filenames=[],
                                                   suffix=False,
                                                   prefix=False,
@@ -408,7 +416,7 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
         - The extraction process is parallelized using the `parallelise()` function and the `extract_files_from_tarball` function.
         - Tarballs whose names contain any of the strings in `exclude_containing` will be skipped during extraction.
     """
-    filepaths = find_exts(top=parent_dir, exts=(extension))
+    filepaths = find_exts(top=parent_dir, exts=extension)
 
     # Filter out tarballs that contain any of the strings in exclude_containing
     filepaths = [filepath for filepath in filepaths if not any(exclude in os.path.basename(filepath) for exclude in exclude_containing)]
