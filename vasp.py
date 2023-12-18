@@ -375,8 +375,8 @@ class DatabaseGenerator():
     def build_database(self,
                        target_directory = None,
                        extract_directories = False,
-                       tarball_extensions = (".tar.gz"),
-                       cleanup=False,
+                       tarball_extensions = (".tar.gz", "tar.bz2"),
+                       cleanup = False,
                        keep_filenames_after_cleanup = [],
                        keep_filename_patterns_after_cleanup = [],
                        max_dir_count = None,
@@ -387,9 +387,17 @@ class DatabaseGenerator():
         start_time = time.time()
         
         if target_directory:
-            dirs = find_vasp_directories(parent_dir=target_directory, extract_tarballs=extract_directories, all_present=all_present, filenames=filenames_to_qualify)
+            dirs = find_vasp_directories(parent_dir = target_directory,
+                                         extract_tarballs = extract_directories,
+                                         all_present = all_present,
+                                         filenames = filenames_to_qualify,
+                                         tarball_extensions = tarball_extensions)
         else:
-            dirs = find_vasp_directories(parent_dir=self.parent_dir, extract_tarballs=extract_directories, all_present=all_present, filenames=filenames_to_qualify)
+            dirs = find_vasp_directories(parent_dir = self.parent_dir,
+                                         extract_tarballs = extract_directories,
+                                         all_present = all_present,
+                                         filenames = filenames_to_qualify,
+                                         tarball_extensions = tarball_extensions)
         
         print(f"The total number of vasp directories that we are building the database out of is {len(dirs)}")
         
