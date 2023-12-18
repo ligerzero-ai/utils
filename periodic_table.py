@@ -49,6 +49,26 @@ def classify_elements(element):
     # If the element doesn't match any group, return 'Others'
     return 'Others'
 
+def get_colour_element(element):
+    # Define the color map inside the function
+    color_map = {'Actinoids': 'r',
+                 'Noble gases': 'royalblue',
+                 'Rare earths': 'm',
+                 'Transition metals': 'purple',
+                 'Alkali metals': 'gold',
+                 'Alkaline earths': "moccasin",
+                 'Halogens': 'mediumspringgreen',
+                 'Metalloids': 'darkcyan',
+                 'Others': 'slategray'}
+
+    # Classify the element using the classify_elements function
+    element_group = classify_elements(element)
+    
+    # Assign color based on the classification using the color_map dictionary
+    colour = color_map.get(element_group, 'slategray')  # Default to 'slategray' if not found in color_map
+    
+    return colour
+
 def periodic_table_plot(plot_df, 
                         property = "Eseg_min",
                         count_min = None,
