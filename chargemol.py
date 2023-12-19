@@ -214,6 +214,20 @@ class ChargemolAnalysis():
     def get_min_ANSBO(self, axis=2, tolerance=0.1):
         return min(get_ANSBO_all_cleavage_planes(self.struct, self.bond_matrix, axis=axis, tolerance=tolerance))
 
+def analyse_ANSBO(directory, axis=2, tolerance=0.1):
+    """
+    
+    """
+    struct, bond_matrix = parse_DDEC6_analysis_output(os.path.join(directory, "VASP_DDEC_analysis.output"))
+    atomic_layers = get_unique_values_in_nth_value(struct.cart_coords, axis, tolerance = tolerance)
+    cp_list = compute_average_pairs(atomic_layers)
+    ANSBO_profile = get_ANSBO_all_cleavage_planes(struct, bond_matrix, axis=axis, tolerance=tolerance)
+    
+    results_dict = {"layer_boundaries": atomic_layers,
+                    "cleavage_coord": cp_list,
+                    "ANSBO_profile": ANSBO_profile}
+    return results_dict
+    
 def find_chargemol_directories(parent_dir,
                             filenames=["DDEC6_even_tempered_atomic_spin_moments.xyz",
                                      "DDEC6_even_tempered_net_atomic_charges.xyz",
@@ -224,7 +238,8 @@ def find_chargemol_directories(parent_dir,
                                      "DDEC_atomic_Rsquared_moments.xyz",
                                      "POTCAR"],
                           all_present=True,
-                          extract_tarballs=True):
+                          extract_tarballs=True,
+                          only_valid_output=True):
     if extract_tarballs:
         gen_tools.find_and_extract_files_from_tarballs_parallel(parent_dir=parent_dir, 
                                                                 extension=".tar.gz",
@@ -235,7 +250,17 @@ def find_chargemol_directories(parent_dir,
     directories =  gen_tools.find_directories_with_files(parent_dir=parent_dir,
                                           filenames=filenames,
                                           all_present=all_present)
-
+    
+    if only_valid_output:
+        converged_list = []
+        non_converged_list = []
+        for dir in directories:
+            file = os.path.join(os.path.dirname(dir), "VASP_DDEC_analysis.output")
+            if check_valid_chargemol_output(file):
+                converged_list.append(dir)
+            else:
+                non_converged_list.append(dir)
+        directories = converged_list
     return directories
 
 def parse_DDEC6_analysis_output(filename):
@@ -359,52 +384,6 @@ def check_valid_chargemol_output(vasp_ddec_analysis_output_filepath):
     convergence = gen_tools.search_line_in_file(vasp_ddec_analysis_output_filepath, "Finished chargemol in")
 
     return convergence
-  
-def find_chargemol_dirs(filepath):
-    """
-    Find directories with Chargemol output files in the specified filepath.
-
-    Args:
-        filepath (str): The path to the directory to search for Chargemol output files.
-
-    Returns:
-        tuple: A tuple containing two lists:
-            - The first list contains paths to directories with Chargemol output files that indicate successful completion.
-            - The second list contains paths to directories with Chargemol output files that did not indicate successful completion.
-
-    Example:
-        directory_path = "/path/to/directory"
-        converged_dirs, non_converged_dirs = find_chargemol_dirs(directory_path)
-        print("Converged directories:")
-        for converged_dir in converged_dirs:
-            print(converged_dir)
-        print("Non-converged directories:")
-        for non_converged_dir in non_converged_dirs:
-            print(non_converged_dir)
-
-    Notes:
-        - The function searches for directories in the specified filepath that contain Chargemol output files.
-        - The Chargemol output files are expected to have the name "VASP_DDEC_analysis.output" and be located
-          in the same directory as an "INCAR" file.
-        - The function uses the helper function `find_filepaths_in_dir_with_files` to find directories with "INCAR" files.
-        - For each directory found, the function checks if the corresponding "VASP_DDEC_analysis.output" file indicates
-          successful completion using the `check_valid_chargemol_output` function.
-        - Directories with successful Chargemol completion are added to the converged list, while directories without
-          successful completion are added to the non-converged list.
-        - The function returns the converged and non-converged lists as a tuple.
-
-    """
-    whole_list = gen_tools.find_directories_with_files(filepath, ["INCAR"])
-    whole_list = [os.path.join(os.path.dirname(path), "VASP_DDEC_analysis.output") for path in whole_list]
-    converged_list = []
-    non_converged_list = []
-    for file in whole_list:
-        if check_valid_chargemol_output(file):
-            converged_list.append(file)
-        else:
-            non_converged_list.append(file)
-    
-    return converged_list, non_converged_list
 
 def plot_structure_projection(structure,
                               projection_axis = [1, 2], 
