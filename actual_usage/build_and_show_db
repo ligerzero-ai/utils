@@ -12,7 +12,7 @@ shift 1  # Remove the first argument (folder_path) from the list of arguments
 path_to_utils="/home/hmai/utils/actual_usage"
 # Garching
 path_to_utils="/cmmc/u/hmai/personal_dev/utils/actual_usage"
-
+path_to_utils="/root/personal_python_utilities/utils/actual_usage"
 # Check if the --extract argument is provided
 extract_flag=""
 if [[ "$@" == *"--extract"* ]]; then
@@ -23,4 +23,4 @@ fi
 python "$path_to_utils/build_vasp_database.py" "$folder_path" "$@"
 
 # Run the second Python script without the --extract argument
-python "$path_to_utils/summarise_vasp_database.py" "$folder_path" $extract_flag
+python "$path_to_utils/summarise_vasp_database.py" "$folder_path"
