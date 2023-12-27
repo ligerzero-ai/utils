@@ -46,6 +46,7 @@ class CalculationConverger():
         if from_dataframe_path:
             df = pd.read_pickle(from_dataframe_path)
             non_converged = df['filepath'].tolist()
+            non_converged = [path[:-len(os.sep + "OUTCAR")] if path.endswith(os.sep + "OUTCAR") else path for path in non_converged]
         else:
             non_converged = self.reconverge_from_log_file()
         
