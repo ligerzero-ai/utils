@@ -7,6 +7,7 @@ import pandas as pd
 from utils.vasp import find_vasp_directories, check_convergence
 from utils.generic import get_latest_file_iteration
 from utils.jobfile import jobfile
+
 def get_slurm_jobs_working_directories(username="hmai"):
     command = f"squeue -u {username} -o \"%i %Z\""
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -34,24 +35,33 @@ class CalculationConverger():
         os.system(f"cd {dirpath} && {self.submission_command} {script_name}")
         
     def reconverge_all(self,
-                       calc_type = "DRS",
-                       HPC = "Setonix",
-                       VASP_version = "5.4.4",
-                       CPU = 128,
-                       walltime = 24,
-                       cpu_per_node=128):
-        non_converged = self.reconverge_from_log_file()
+                    calc_type = "DRS",
+                    HPC = "Setonix",
+                    VASP_version = "5.4.4",
+                    CPU = 128,
+                    walltime = 24,
+                    cpu_per_node=128,
+                    from_dataframe_path=None):  # New parameter
+        # Read from DataFrame if the path is provided
+        if from_dataframe_path:
+            df = pd.read_pickle(from_dataframe_path)
+            non_converged = df['filepath'].tolist()
+        else:
+            non_converged = self.reconverge_from_log_file()
+        
+        # This is necessary to avoid reconverges from the log file which aren't in specified dir
+        # This occurs when there are multiple calculation runs in the queue (that are not from this dir)
         non_converged = [item for item in non_converged if self.parent_dir in item]
         running_jobs_df = get_slurm_jobs_working_directories(self.user)
         running_queued_job_directories = running_jobs_df["Working Directory"].to_list()
-        
+
         dirs_to_search_next_time = []
         leftover_calcs_exceeding_queue_limit = []
         # Exclude the running job directories from dirs_to_search
         dirs_to_apply_reconverge = set(non_converged) if non_converged else set(self.vasp_dirs)
         dirs_to_apply_reconverge -= set(running_queued_job_directories)
         dirs_to_apply_reconverge = list(set(dirs_to_apply_reconverge))
-        
+
         for i, dir in enumerate(dirs_to_apply_reconverge):
             converged = check_convergence(dir)
             if not converged:
@@ -61,27 +71,27 @@ class CalculationConverger():
                     leftover_calcs_exceeding_queue_limit.append(dir)
                 else:
                     self.reconverge(dir,
-                                    calc_type = calc_type,
-                                    HPC = HPC,
-                                    VASP_version = VASP_version,
-                                    CPU = CPU,
-                                    walltime = walltime,
+                                    calc_type=calc_type,
+                                    HPC=HPC,
+                                    VASP_version=VASP_version,
+                                    CPU=CPU,
+                                    walltime=walltime,
                                     cpu_per_node=cpu_per_node)
                     dirs_to_search_next_time.append(dir)
             else:
                 print(f"CONVERGED: {dir}")
-        
+
         dirs_to_search_next_time += running_queued_job_directories
         dirs_to_search_next_time += leftover_calcs_exceeding_queue_limit
-        
+
         os.chdir(self.parent_dir)
-        
+
         with open(os.path.join(self.parent_dir, "resubmit.log"), "w") as log_file:
             for dir_path in dirs_to_search_next_time:
                 log_file.write(dir_path + "\n")
-                
+
         return dirs_to_search_next_time
-    
+
     def reconverge(self,
                     dirpath,
                     calc_type="SDRS",
