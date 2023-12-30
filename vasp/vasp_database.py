@@ -12,7 +12,7 @@ from pymatgen.io.vasp import Incar, Kpoints
 
 from utils.vasp.parser.outcar import Outcar
 #from utils.vasp.vasp import read_OUTCAR
-
+import warnings
 def process_error_archives(directory):
     """
     Processes all tar or tar.gz files starting with 'error' in the specified directory and its subdirectories.
@@ -283,7 +283,11 @@ def parse_vasp_directory(directory,
     for _, row in df.iterrows():
         results_df.append(process_outcar(row.OUTCAR, row.POSCAR))
         kpoints_list.append(_get_KPOINTS_info(row.KPOINTS,row.INCAR))
-    results_df = pd.concat(results_df).sort_values(by="calc_start_time")
+    try:
+        results_df = pd.concat(results_df).sort_values(by="calc_start_time")
+    except Exception as e:
+        warnings.warn(f"WARNING: {directory} OUTCAR parsing failed!\nFailed with exception {e}")
+        results_df = pd.DataFrame()
     results_df["KPOINTS"] = kpoints_list
     results_df = results_df.copy().reset_index(drop=True)
     results_df["INCAR"] = df["INCAR"].tolist()
