@@ -363,9 +363,11 @@ def find_converged_dirs(parent_dir):
 
 class DatabaseGenerator():
     
-    def __init__(self, parent_dir):
+    def __init__(self,
+                 parent_dir,
+                 max_workers=16):
         self.parent_dir = parent_dir
-        
+        self.max_workers = max_workers
     def build_database(self,
                     target_directory = None,
                     extract_directories = False,

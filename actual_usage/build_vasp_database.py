@@ -2,7 +2,7 @@ from utils.vasp.vasp import DatabaseGenerator
 import argparse
 import warnings
 
-
+from multiprocessing import cpu_count
 def main():
     warnings.filterwarnings("ignore")
     
@@ -12,7 +12,8 @@ def main():
     parser.add_argument('--max_dir_count', type=int, help='Maximum directory count for database generation')
     args = parser.parse_args()
 
-    datagen = DatabaseGenerator(args.directory)
+    datagen = DatabaseGenerator(args.directory,
+                                max_workers=cpu_count())
     
     # Check if max_dir_count is provided as an argument
     if args.max_dir_count is not None:
