@@ -8,12 +8,55 @@ import numpy as np
 import pandas as pd
 
 from pymatgen.core import Structure
-from pymatgen.io.vasp import Incar, Kpoints
+from pymatgen.io.vasp import Incar, Kpoints, Vasprun
 
 from utils.vasp.parser.outcar import Outcar
-from utils.vasp.vasp import check_convergence
+# from utils.vasp.vasp import check_convergence
 #from utils.vasp.vasp import read_OUTCAR
 import warnings
+import utils.generic as gen_tools
+
+def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplog="vasp.log", backup_vasplog = "error.out"):
+    """
+    Check the convergence status of a VASP calculation.
+
+    Args:
+        directory (str): The directory containing the VASP files.
+        filename_vasprun (str, optional): The name of the vasprun.xml file (default: "vasprun.xml").
+        filename_vasplog (str, optional): The name of the vasp.log file (default: "vasp.log").
+
+    Returns:
+        bool: True if the calculation has converged, False otherwise.
+
+    Raises:
+        FileNotFoundError: If neither vasprun.xml nor vasp.log is found.
+
+    Example:
+        >>> convergence_status = check_convergence(directory="/path/to/vasp_files")
+        >>> if convergence_status:
+        ...     print("Calculation has converged.")
+        ... else:
+        ...     print("Calculation has not converged.")
+    """
+    try:
+        vr = Vasprun(filename=os.path.join(directory, filename_vasprun))
+        return vr.converged
+    except:
+        line_converged = "reached required accuracy - stopping structural energy minimisation"
+        try:
+            converged = gen_tools.is_line_in_file(filepath=os.path.join(directory, filename_vasplog),
+                                        line=line_converged,
+                                        exact_match=False)
+            return converged
+        except:
+            try:
+                converged = gen_tools.is_line_in_file(filepath=os.path.join(directory, backup_vasplog),
+                            line=line_converged,
+                            exact_match=False)
+                return converged
+            except:
+                return False
+            
 def process_error_archives(directory):
     """
     Processes all tar or tar.gz files starting with 'error' in the specified directory and its subdirectories.
