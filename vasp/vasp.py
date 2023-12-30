@@ -366,19 +366,19 @@ class DatabaseGenerator():
     def __init__(self, parent_dir):
         self.parent_dir = parent_dir
         
-       def build_database(self,
-                       target_directory = None,
-                       extract_directories = False,
-                       tarball_extensions = (".tar.gz", "tar.bz2"),
-                       read_error_dirs = False,
-                       read_multiple_runs_in_dir = False,
-                       cleanup = False,
-                       keep_filenames_after_cleanup = [],
-                       keep_filename_patterns_after_cleanup = [],
-                       max_dir_count = None,
-                       filenames_to_qualify=["vasp.log", "INCAR", "POTCAR", "CONTCAR", "KPOINTS", "OUTCAR", "vasprun.xml"],
-                       all_present=False,
-                       df_filename = None):
+    def build_database(self,
+                    target_directory = None,
+                    extract_directories = False,
+                    tarball_extensions = (".tar.gz", "tar.bz2"),
+                    read_error_dirs = False,
+                    read_multiple_runs_in_dir = False,
+                    cleanup = False,
+                    keep_filenames_after_cleanup = [],
+                    keep_filename_patterns_after_cleanup = [],
+                    max_dir_count = None,
+                    filenames_to_qualify=["vasp.log", "INCAR", "POTCAR", "CONTCAR", "KPOINTS", "OUTCAR", "vasprun.xml"],
+                    all_present=False,
+                    df_filename = None):
         
         start_time = time.time()
         
