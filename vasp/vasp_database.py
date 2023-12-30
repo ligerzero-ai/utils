@@ -305,6 +305,7 @@ def parse_vasp_directory(directory,
     results_df["element_list"] = [element_list] * len(results_df)
     results_df["element_count"] = [element_count] * len(results_df)
     results_df["potcar_electron_count"] = [electron_of_potcar] * len(results_df)
-
+    results_df["job_name"] = [os.path.basename(directory)] * len(results_df)
+    results_df["filepath"] = [directory] * len(results_df)
 
     return results_df

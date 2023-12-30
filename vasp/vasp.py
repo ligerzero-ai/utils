@@ -11,6 +11,7 @@ import pandas as pd
 import utils.generic as gen_tools
 from utils.parallel import parallelise
 from utils.vasp.parser.outcar import Outcar
+from utils.vasp.vasp_database import parse_vasp_directory
 
 def find_vasp_directories(parent_dir,
                           filenames=["vasp.log", "INCAR", "POTCAR", "CONTCAR", "KPOINTS", "OUTCAR", "vasprun.xml"],
@@ -365,10 +366,12 @@ class DatabaseGenerator():
     def __init__(self, parent_dir):
         self.parent_dir = parent_dir
         
-    def build_database(self,
+       def build_database(self,
                        target_directory = None,
                        extract_directories = False,
                        tarball_extensions = (".tar.gz", "tar.bz2"),
+                       read_error_dirs = False,
+                       read_multiple_runs_in_dir = False,
                        cleanup = False,
                        keep_filenames_after_cleanup = [],
                        keep_filename_patterns_after_cleanup = [],
@@ -391,7 +394,6 @@ class DatabaseGenerator():
                                          all_present = all_present,
                                          filenames = filenames_to_qualify,
                                          tarball_extensions = tarball_extensions)
-        
         print(f"The total number of vasp directories that we are building the database out of is {len(dirs)}")
         
         if max_dir_count:
@@ -400,7 +402,11 @@ class DatabaseGenerator():
             
             for i, chunks in enumerate(gen_tools.chunk_list(dirs, max_dir_count)):
                 step_time = time.time()
-                df = pd.concat(parallelise(parse_VASP_directory, chunks))
+                df = pd.concat(parallelise(parse_vasp_directory, 
+                                            [(chunk,) for chunk in chunks],
+                                            max_workers=self.max_workers,
+                                            extract_error_dirs=read_error_dirs, 
+                                            parse_all_in_dir=read_multiple_runs_in_dir))
                 if df_filename:
                     db_filename = f"{i}_{df_filename}.pkl"
                 else:
@@ -414,9 +420,11 @@ class DatabaseGenerator():
             df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
             
         else:
-            
-            df = pd.concat(parallelise(parse_VASP_directory, dirs))
-            results = [df]
+            df = pd.concat(parallelise(parse_vasp_directory, 
+                                        [(chunk,) for chunk in chunks],
+                                        max_workers=self.max_workers,
+                                        extract_error_dirs=read_error_dirs, 
+                                        parse_all_in_dir=read_multiple_runs_in_dir))
             if df_filename:
                 df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
         
