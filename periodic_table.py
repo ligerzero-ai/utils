@@ -10,14 +10,16 @@ import matplotlib.cm as cm
 from matplotlib.colors import Normalize
 from pymatgen.core import Element
 
+import warnings
+
 module_path = os.path.dirname(os.path.abspath(__file__))
 ptable = pd.read_csv(os.path.join(module_path, "periodic_table.csv"))
 
 def get_element_number(symbol):
     try:
-        return Element(symbol).Z
+        return Element(symbol).atomic_number
     except ValueError:
-        print(f"Warning: Symbol {symbol} was not found, returning np.nan")
+        warnings.warn(f"Warning: Symbol '{symbol}' was not found.")
         return np.nan
     
 def get_element_symbol(element_number):
@@ -25,7 +27,7 @@ def get_element_symbol(element_number):
     if not row.empty:
         return row["symbol"].values[0]
     else:
-        print(f"Warning: Element with Z:{element_number} was not found, returning np.nan")
+        warnings.warn(f"Warning: Element with Z:{element_number} was not found.")
         return np.nan
     
 def classify_elements(element):

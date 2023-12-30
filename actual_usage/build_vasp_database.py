@@ -1,4 +1,4 @@
-from utils.vasp import DatabaseGenerator
+from utils.vasp.vasp import DatabaseGenerator
 import argparse
 import warnings
 

@@ -3,7 +3,7 @@ import tempfile
 import os
 import shutil
 
-from utils.vasp import (find_vasp_directories)
+from utils.vasp.vasp import (find_vasp_directories)
 
 class TestFindVaspDirectories(unittest.TestCase):
     def setUp(self):

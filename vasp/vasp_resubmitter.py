@@ -4,7 +4,7 @@ import tarfile
 import subprocess
 import pandas as pd
 
-from utils.vasp import find_vasp_directories, check_convergence
+from utils.vasp.vasp import find_vasp_directories, check_convergence
 from utils.generic import get_latest_file_iteration
 from utils.jobfile import jobfile
 
@@ -226,7 +226,7 @@ class CalculationConverger():
         }
 
         # Generate a string representation from template_Static.py
-        template_path = os.path.join(self.script_template_dir,"template_SDRS.py")
+        template_path = os.path.join(self.script_template_dir,"template_DRS.py")
         custodian_string = jobfile._replace_fields(template_path, user_inputs)
         
         script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
