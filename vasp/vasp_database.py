@@ -11,6 +11,7 @@ from pymatgen.core import Structure
 from pymatgen.io.vasp import Incar, Kpoints
 
 from utils.vasp.parser.outcar import Outcar
+from utils.vasp.vasp import check_convergence
 #from utils.vasp.vasp import read_OUTCAR
 import warnings
 def process_error_archives(directory):
@@ -311,5 +312,5 @@ def parse_vasp_directory(directory,
     results_df["potcar_electron_count"] = [electron_of_potcar] * len(results_df)
     results_df["job_name"] = [os.path.basename(directory)] * len(results_df)
     results_df["filepath"] = [directory] * len(results_df)
-
+    results_df["convergence"] = [check_convergence(directory)] * len(results_df)
     return results_df
