@@ -11,7 +11,7 @@ from pymatgen.core import Structure
 from pymatgen.io.vasp import Incar, Kpoints
 
 from utils.vasp.parser.outcar import Outcar
-from utils.vasp.vasp import read_OUTCAR
+#from utils.vasp.vasp import read_OUTCAR
 
 def process_error_archives(directory):
     """
