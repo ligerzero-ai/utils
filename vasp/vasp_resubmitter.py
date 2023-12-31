@@ -209,13 +209,10 @@ class CalculationConverger():
         relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
 
         if relax2_files_exist:
-            script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_2_{HPC}.sh")
             stages_left = 1
         elif relax1_files_exist:
-            script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_1_{HPC}.sh")
             stages_left = 2
         else:
-            script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_{HPC}.sh")
             stages_left = 3
 
         # User inputs for the SDRS template
@@ -229,7 +226,7 @@ class CalculationConverger():
         template_path = os.path.join(self.script_template_dir,"template_DRS.py")
         custodian_string = jobfile._replace_fields(template_path, user_inputs)
         
-        script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
+        script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_{HPC}.sh")
         target_script_name = f"{os.path.basename(dirpath)}.sh"
         
         job = jobfile(file_path = script_name,
