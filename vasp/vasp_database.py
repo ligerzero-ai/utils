@@ -353,7 +353,8 @@ def parse_vasp_directory(directory,
         results_df["INCAR"] = df["INCAR"].tolist()
     except:
         warnings.warn(f"WARNING: INCAR TOLIST FAILED AT {directory}")
-        print(directory, results_df, df["INCAR"])
+        print(directory, results_df)
+        print(df)
     try:
         element_list, element_count, electron_of_potcar = grab_electron_info(directory_path=directory,
                                                                             potcar_filename="POTCAR")
