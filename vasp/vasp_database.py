@@ -349,7 +349,10 @@ def parse_vasp_directory(directory,
         results_df = pd.DataFrame()
     results_df["KPOINTS"] = kpoints_list
     results_df = results_df.copy().reset_index(drop=True)
-    results_df["INCAR"] = df["INCAR"].tolist()
+    try:
+        results_df["INCAR"] = df["INCAR"].tolist()
+    except KeyError:
+        print(directory, results_df, df["INCAR"])
     try:
         element_list, element_count, electron_of_potcar = grab_electron_info(directory_path=directory,
                                                                             potcar_filename="POTCAR")
