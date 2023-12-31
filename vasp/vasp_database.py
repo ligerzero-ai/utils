@@ -164,74 +164,90 @@ def _get_KPOINTS_info(KPOINTS, INCAR):
     return kpoints
     
 def process_outcar(outcar, structure):
-    try:
-        energies = outcar.parse_dict["energies"]
-    except:
-        energies = np.nan
+    if pd.isna(outcar):
+        warnings.warn("OUTCAR data is missing. Returning DataFrame with np.nan values.")
+
+        df = pd.DataFrame([{
+            "calc_start_time": np.nan,
+            "consumed_time": np.nan,
+            "structures": np.nan,
+            "energy": np.nan,
+            "energy_zero": np.nan,
+            "forces": np.nan,
+            "stresses": np.nan,
+            "magmoms": np.nan,
+            "scf_steps": np.nan,
+            "scf_convergence": np.nan
+        }])
+    else:
+        try:
+            energies = outcar.parse_dict["energies"]
+        except:
+            energies = np.nan
+            
+        try:
+            ionic_step_structures = np.array([Structure(cell, structure.species, outcar.parse_dict["positions"][i], coords_are_cartesian=True).to_json()
+                                                for i, cell in enumerate(outcar.parse_dict["cells"])])
+        except:
+            ionic_step_structures = np.nan
         
-    try:
-        ionic_step_structures = np.array([Structure(cell, structure.species, outcar.parse_dict["positions"][i], coords_are_cartesian=True).to_json()
-                                            for i, cell in enumerate(outcar.parse_dict["cells"])])
-    except:
-        ionic_step_structures = np.nan
-    
-    try:
-        energies_zero =  outcar.parse_dict["energies_zero"]
-    except:
-        energies_zero = np.nan
+        try:
+            energies_zero =  outcar.parse_dict["energies_zero"]
+        except:
+            energies_zero = np.nan
+            
+        try:
+            forces = outcar.parse_dict["forces"]
+        except:
+            forces = np.nan
+            
+        try:
+            stresses = outcar.parse_dict["stresses"]
+        except:
+            stresses = np.nan
+            
+        try:
+            magmoms = np.array(outcar.parse_dict["final_magmoms"])
+        except:
+            magmoms = np.nan
+            
+        try:
+            scf_steps = [len(i) for i in outcar.parse_dict["scf_energies"]]
+            scf_conv_list = [get_SCF_cycle_convergence(d, threshold=1e-5) for d in outcar.parse_dict["scf_energies"]]
+        except:
+            scf_steps = np.nan
+            scf_conv_list = np.nan
         
-    try:
-        forces = outcar.parse_dict["forces"]
-    except:
-        forces = np.nan
+        try:
+            calc_start_time = outcar.parse_dict["execution_datetime"]
+        except:
+            calc_start_time = np.nan
         
-    try:
-        stresses = outcar.parse_dict["stresses"]
-    except:
-        stresses = np.nan
-        
-    try:
-        magmoms = np.array(outcar.parse_dict["final_magmoms"])
-    except:
-        magmoms = np.nan
-        
-    try:
-        scf_steps = [len(i) for i in outcar.parse_dict["scf_energies"]]
-        scf_conv_list = [get_SCF_cycle_convergence(d, threshold=1e-5) for d in outcar.parse_dict["scf_energies"]]
-    except:
-        scf_steps = np.nan
-        scf_conv_list = np.nan
-    
-    try:
-        calc_start_time = outcar.parse_dict["execution_datetime"]
-    except:
-        calc_start_time = np.nan
-    
-    try:
-        consumed_time = outcar.parse_dict["resources"]
-    except:
-        consumed_time = np.nan
-        
-    df = pd.DataFrame([[calc_start_time,
-                        consumed_time,
-                        ionic_step_structures,
-                        energies,
-                        energies_zero,
-                        forces,
-                        stresses,
-                        magmoms,
-                        scf_steps,
-                        scf_conv_list]],
-                columns = ["calc_start_time",
-                           "consumed_time",
-                           "structures",
-                            "energy",
-                            "energy_zero",
-                            "forces",
-                            "stresses",
-                            "magmoms",
-                            "scf_steps",
-                            "scf_convergence"])    
+        try:
+            consumed_time = outcar.parse_dict["resources"]
+        except:
+            consumed_time = np.nan
+            
+        df = pd.DataFrame([[calc_start_time,
+                            consumed_time,
+                            ionic_step_structures,
+                            energies,
+                            energies_zero,
+                            forces,
+                            stresses,
+                            magmoms,
+                            scf_steps,
+                            scf_conv_list]],
+                    columns = ["calc_start_time",
+                            "consumed_time",
+                            "structures",
+                                "energy",
+                                "energy_zero",
+                                "forces",
+                                "stresses",
+                                "magmoms",
+                                "scf_steps",
+                                "scf_convergence"])    
     return df
 
 def get_structure(directory):
@@ -321,7 +337,6 @@ def parse_vasp_directory(directory,
     df = get_vasp_outputs(directory,
                           extract_error_dirs=extract_error_dirs,
                           parse_all_in_dir=parse_all_in_dir)
-    df = df.dropna(subset=["OUTCAR"])
     results_df = []
     kpoints_list = []
     for _, row in df.iterrows():
@@ -335,7 +350,6 @@ def parse_vasp_directory(directory,
     results_df["KPOINTS"] = kpoints_list
     results_df = results_df.copy().reset_index(drop=True)
     results_df["INCAR"] = df["INCAR"].tolist()
-    
     try:
         element_list, element_count, electron_of_potcar = grab_electron_info(directory_path=directory,
                                                                             potcar_filename="POTCAR")
@@ -343,13 +357,11 @@ def parse_vasp_directory(directory,
         element_list = np.nan
         element_count = np.nan
         electron_of_potcar = np.nan
-
     try:
         electron_count = get_total_electron_count(directory_path=directory)
     except Exception as e:
         print(e)
         electron_count = np.nan
-        
     results_df["element_list"] = [element_list] * len(results_df)
     results_df["element_count"] = [element_count] * len(results_df)
     results_df["potcar_electron_count"] = [electron_of_potcar] * len(results_df)

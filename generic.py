@@ -224,31 +224,6 @@ def extract_tarball(archive_filepath, extraction_path):
     except Exception as e:
         print(f"Error extracting archive: {e}")
 
-# def extract_tarball(tarball_filepath, extraction_path):
-#     """
-#     Extracts the contents of a tarball file to the specified extraction path.
-
-#     Parameters:
-#         tarball_filepath (str): The path of the tarball file to extract.
-#         extraction_path (str): The path where the contents of the tarball will be extracted.
-
-#     Usage:
-#         # Extract a tarball file to a specific extraction path
-#         extract_tarball("/path/to/tarball.tar.gz", "/path/to/extraction")
-
-#     Note:
-#         - The function opens the tarball file using the `tarfile` module with read mode and gzip compression.
-#         - It extracts all the contents of the tarball to the specified extraction path.
-#         - The directory structure within the tarball will be preserved in the extraction process.
-#     """
-#     try:
-#         with tarfile.open(tarball_filepath, "r:gz") as tar:
-#             tar.extractall(extraction_path)
-#     except:
-#         # EOFError
-#         # EOFError: Compressed file ended before the end-of-stream marker was reached
-#         a = 0
-
 def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz")):
     """
     Finds tarball files with specified extensions in a directory and extracts them in parallel.
