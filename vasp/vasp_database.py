@@ -94,56 +94,83 @@ def process_error_archives(directory):
     else:
         return pd.DataFrame()
 
+def _get_vasp_outputs_from_files(structure,
+                                outcar_path = "OUTCAR",
+                                 incar_path = "INCAR",
+                                 kpoints_path = "KPOINTS"):
+
+    # Initialize dictionary to hold file data
+    file_data = {
+        "POSCAR": [structure],
+        "OUTCAR": [np.nan],
+        "INCAR": [np.nan],
+        "KPOINTS": [np.nan]
+    }
+    if os.path.isfile(outcar_path):
+        try:
+            outcar = Outcar()
+            outcar.from_file(filename = outcar_path)
+            file_data["OUTCAR"] = [outcar]
+        except Exception as e:
+            file_data["OUTCAR"] = [np.nan]
+            print(f"Error reading OUTCAR file {outcar_path}: {e}")
+            
+    # Try to find INCAR file with same suffix
+    if os.path.isfile(incar_path):
+        try:
+            incar = Incar.from_file(incar_path).as_dict()
+            file_data["INCAR"] = [incar]
+        except Exception as e:
+            file_data["INCAR"] = [np.nan]
+            print(f"Error reading INCAR file {incar_path}: {e}")
+
+    # Try to find KPOINTS file with same suffix
+    if os.path.isfile(kpoints_path):
+        try:
+            kpoints = Kpoints.from_file(kpoints_path).as_dict()
+            file_data["KPOINTS"] = [kpoints]
+        except Exception as e:
+            #print(f"No KPOINTS file (could be just fine, KSPACING in INCAR?) {kpoints_path}: {e}")
+            pass
+        
+    return pd.DataFrame(file_data)
+
 def _get_vasp_outputs(directory,
-                        structure=None,
-                        parse_all_in_dir=True):
+                    structure=None,
+                    parse_all_in_dir=True):
     # Pattern to find OUTCAR files
     if parse_all_in_dir:
         outcar_files = glob.glob(os.path.join(directory, "OUTCAR*"))
     else:
         outcar_files = glob.glob(os.path.join(directory, "OUTCAR"))
-    data = []
-    for outcar_file in outcar_files:
-        suffix = os.path.basename(outcar_file).replace("OUTCAR", "")
-        if structure is None:
-            structure = get_structure(directory)
-            
-        # Initialize dictionary to hold file data
-        file_data = {
-            "POSCAR": structure,
-            "OUTCAR": np.nan,
-            "INCAR": np.nan,
-            "KPOINTS": np.nan
-        }
         
-        if os.path.isfile(outcar_file):
-            try:
-                outcar = Outcar()
-                outcar.from_file(filename = outcar_file)
-                file_data["OUTCAR"] = outcar
-            except Exception as e:
-                print(f"Error reading OUTCAR file {outcar_file}: {e}")
-                
-        # Try to find INCAR file with same suffix
-        incar_file = os.path.join(directory, f"INCAR{suffix}")
-        if os.path.isfile(incar_file):
-            try:
-                incar = Incar.from_file(incar_file).as_dict()
-                file_data["INCAR"] = incar
-            except Exception as e:
-                print(f"Error reading INCAR file {incar_file}: {e}")
+    # The structure is only necessary for outcar parsing for species assignment
+    # it doesn't actually contribute otherwise to the final output dataframe
+    if structure is None:
+        structure = get_structure(directory)
+    
+    if len(outcar_files) > 0:
+        data = []
+        for outcar_file in outcar_files:
+            suffix = os.path.basename(outcar_file).replace("OUTCAR", "")
+            incar_file = os.path.join(directory, f"INCAR{suffix}")
+            kpoints_file = os.path.join(directory, f"KPOINTS{suffix}")
 
-        # Try to find KPOINTS file with same suffix
-        kpoints_file = os.path.join(directory, f"KPOINTS{suffix}")
-        if os.path.isfile(kpoints_file):
-            try:
-                kpoints = Kpoints.from_file(kpoints_file).as_dict()
-                file_data["KPOINTS"] = kpoints
-            except Exception as e:
-                print(f"Error reading KPOINTS file {kpoints_file}: {e}")
-                
-        data.append(file_data)
-    return pd.DataFrame(data)
+            output_df = _get_vasp_outputs_from_files(structure,
+                                         outcar_path=outcar_file,
+                                         incar_path=incar_file,
+                                         kpoints_path=kpoints_file)
+
+            data.append(output_df)
+        data = pd.concat(data)
+    else:
+        data = pd.DataFrame({
+                "POSCAR": [structure],
+                "OUTCAR": [np.nan],
+                "INCAR": [np.nan],
+                "KPOINTS": [np.nan]
+            })
+    return data
 
 def get_SCF_cycle_convergence(outcar_scf_arrays, threshold=1e-5):
     diff = outcar_scf_arrays[-1] - outcar_scf_arrays[-2]
@@ -153,20 +180,31 @@ def get_SCF_cycle_convergence(outcar_scf_arrays, threshold=1e-5):
         return False
     
 def _get_KPOINTS_info(KPOINTS, INCAR):
-    if np.isnan(KPOINTS):
-        kpoints_key = 'KSPACING'
-        if kpoints_key in INCAR:
-            kpoints = f"KSPACING: {INCAR[kpoints_key]}"
+    try:
+        if np.isnan(KPOINTS):
+            kpoints_key = 'KSPACING'
+            if kpoints_key in INCAR:
+                kpoints = f"KSPACING: {INCAR[kpoints_key]}"
+            else:
+                kpoints = "KSPACING: 0.5"
         else:
-            kpoints = "KSPACING: 0.5"
-    else:
-        kpoints = KPOINTS
+            kpoints = KPOINTS
+    except Exception as e:
+        print(e)
+        kpoints = np.nan
     return kpoints
     
 def process_outcar(outcar, structure):
-    if pd.isna(outcar):
-        warnings.warn("OUTCAR data is missing. Returning DataFrame with np.nan values.")
-
+    if pd.isna(outcar) or pd.isna(structure):
+        
+        if pd.isna(outcar) and pd.isna(structure):
+            warning_message = "Both OUTCAR and structure data are missing. Returning DataFrame with np.nan values."
+        elif pd.isna(outcar):
+            warning_message = "OUTCAR data is missing. Returning DataFrame with np.nan values for OUTCAR-related fields."
+        else:  # pd.isna(structure) must be True
+            warning_message = "Structure data is missing. Returning DataFrame with np.nan values for structure-related fields."
+        warnings.warn(warning_message)
+        
         df = pd.DataFrame([{
             "calc_start_time": np.nan,
             "consumed_time": np.nan,
@@ -239,8 +277,8 @@ def process_outcar(outcar, structure):
                             scf_steps,
                             scf_conv_list]],
                     columns = ["calc_start_time",
-                            "consumed_time",
-                            "structures",
+                                "consumed_time",
+                                "structures",
                                 "energy",
                                 "energy_zero",
                                 "forces",
@@ -330,7 +368,6 @@ def element_count_ordered(structure):
     element_count.append(count)
     return element_list, element_count 
 
-
 def parse_vasp_directory(directory,
                          extract_error_dirs=True,
                          parse_all_in_dir=True):
@@ -342,19 +379,11 @@ def parse_vasp_directory(directory,
     for _, row in df.iterrows():
         results_df.append(process_outcar(row.OUTCAR, row.POSCAR))
         kpoints_list.append(_get_KPOINTS_info(row.KPOINTS,row.INCAR))
-    try:
-        results_df = pd.concat(results_df).sort_values(by="calc_start_time")
-    except Exception as e:
-        warnings.warn(f"WARNING: {directory} OUTCAR parsing failed!\nFailed with exception {e}")
-        results_df = pd.DataFrame()
+
+    results_df = pd.concat(results_df).sort_values(by="calc_start_time")   
     results_df["KPOINTS"] = kpoints_list
-    results_df = results_df.copy().reset_index(drop=True)
-    try:
-        results_df["INCAR"] = df["INCAR"].tolist()
-    except:
-        warnings.warn(f"WARNING: INCAR TOLIST FAILED AT {directory}")
-        print(directory, results_df)
-        print(df)
+    results_df["INCAR"] = df["INCAR"].tolist()
+    
     try:
         element_list, element_count, electron_of_potcar = grab_electron_info(directory_path=directory,
                                                                             potcar_filename="POTCAR")
@@ -369,6 +398,7 @@ def parse_vasp_directory(directory,
         electron_count = np.nan
     results_df["element_list"] = [element_list] * len(results_df)
     results_df["element_count"] = [element_count] * len(results_df)
+    results_df["electron_count"] = [electron_count] * len(results_df)
     results_df["potcar_electron_count"] = [electron_of_potcar] * len(results_df)
     results_df["job_name"] = [os.path.basename(directory)] * len(results_df)
     results_df["filepath"] = [directory] * len(results_df)
