@@ -36,7 +36,7 @@ original_jobs = [
                 {"file": "AECCAR0", "action": {"_file_copy": {"dest": "AECCAR0.static_1"}}},
                 {"file": "AECCAR1", "action": {"_file_copy": {"dest": "AECCAR1.static_1"}}},
                 {"file": "AECCAR2", "action": {"_file_copy": {"dest": "AECCAR2.static_1"}}},
-                {"dict": "INCAR", "action": {"_set": {"NSW": 100, "LAECHG": False, "LCHARGE": False, "NELM": 80, "EDIFF": 1E-4, "KSPACING": 0.9}}}
+                {"dict": "INCAR", "action": {"_set": {"NSW": 100, "LAECHG": False, "LCHARGE": False, "NELM": 80, "ALGO": "VeryFast", "EDIFF": 1E-4, "KSPACING": 0.9}}}
             ],
             copy_magmom=True),
     

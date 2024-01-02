@@ -17,7 +17,7 @@ ptable = pd.read_csv(os.path.join(module_path, "periodic_table.csv"))
 
 def get_element_number(symbol):
     try:
-        return Element(symbol).atomic_number
+        return Element(symbol).Z
     except ValueError:
         warnings.warn(f"Warning: Symbol '{symbol}' was not found.")
         return np.nan
