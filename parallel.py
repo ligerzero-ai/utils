@@ -60,14 +60,17 @@ def parallelise(func, args_list, **kwargs_list):
             replicated_kwargs[key] = value
 
     # Combine args and kwargs for each function call
-    combined_args = [list(args) + list(replicated_kwargs[key][i] for key in replicated_kwargs) for i, args in enumerate(args_list)]
+    combined_args = [
+        (list(args) if isinstance(args, tuple) else [args]) + [replicated_kwargs[key][i] for key in replicated_kwargs]
+        for i, args in enumerate(args_list)
+    ]
 
     # Determine the number of processors to use
     num_processors = min(len(args_list), max_workers or cpu_count())
     print(f"# Processes: {len(args_list)}, Processors available: {cpu_count()}, CPUs used: {num_processors}")
-
+    print(combined_args)
     # Execute the function in parallel
     with Pool(processes=num_processors) as pool:
-        results = pool.starmap(func, combined_args)
+        results = pool.starmap(func, tuple(combined_args))
 
     return results
