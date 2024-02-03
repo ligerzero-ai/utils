@@ -18,6 +18,8 @@ def parallelise(func, args_list, max_workers=None, **kwargs_list):
     if not args_list:
         return []
     
+    kwargs_list.pop('max_workers', None)  # None is the default value if the key doesn't exist
+    
     # Adjust replication for kwargs, handling empty lists specifically
     replicated_kwargs = {}
     for key, value in kwargs_list.items():

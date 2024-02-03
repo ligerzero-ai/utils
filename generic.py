@@ -224,15 +224,6 @@ def extract_tarball(archive_filepath, extraction_path):
     except Exception as e:
         print(f"Error extracting archive: {e}")
 
-# def parse_vasp_directory(directory,
-#                          extract_error_dirs=True,
-#                          parse_all_in_dir=True):
-
-# df = pd.concat(parallelise(parse_vasp_directory, 
-#                             [(chunk,) for chunk in chunks],
-#                             max_workers=self.max_workers,
-#                             extract_error_dirs=read_error_dirs, 
-#                             parse_all_in_dir=read_multiple_runs_in_dir))
 def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz"), max_workers=None):
     """
     Finds tarball files with specified extensions in a directory and extracts them in parallel.
@@ -359,7 +350,7 @@ def extract_files_from_tarballs_parallel(tarball_paths, filenames, suffix=False,
     if suffix:
         suffixes = [os.path.basename(filepath).split(".tar")[0] for filepath in tarball_paths]
     else:
-        suffixes = [None for _ in tarball_paths]
+        suffixes = None
 
     parallelise(extract_files_from_tarball, tarball_paths, filenames, max_workers=max_workers, suffix=suffixes)
 
@@ -405,7 +396,6 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
     # Filter out tarballs that contain any of the strings in exclude_containing
     filepaths = [filepath for filepath in filepaths if not any(exclude in os.path.basename(filepath) for exclude in exclude_containing)]
 
-    filenames = [filenames]*len(filepaths)
     if suffix:
         # Really ugly so this only works with .tar.gz files for now
         suffixes = [os.path.basename(filepath).split(".tar")[0] for filepath in filepaths]
@@ -511,10 +501,6 @@ def compress_directory_parallel(directory_paths,
         - The `print_message` parameter controls whether a message indicating the compression is printed for each directory.
         - The function parallelizes the compression process using the `parallelise()` function and the `compress_directory` function.
     """
-    exclude_files = [exclude_files] * len(directory_paths) if exclude_files is not None else exclude_files
-    exclude_file_patterns = [exclude_file_patterns] * len(directory_paths) if exclude_file_patterns is not None else exclude_file_patterns
-    print_message = [print_message] * len(directory_paths) if print_message is not None else print_message
-    inside_dir = [inside_dir] * len(directory_paths) if inside_dir is not None else inside_dir
     parallelise(compress_directory,
                 directory_paths,
                 max_workers=max_workers,
@@ -669,16 +655,7 @@ def find_and_compress_directories_parallel(parent_dir,
         - The `inside_dir` parameter determines whether the output tarball should be placed inside each directory (True) or in the same directory as each directory (False).
         - The function parallelizes the compression process using the `parallelise()` function and the `compress_and_cleanup` function.
     """
-    # I've no idea how to do this better, lol. I'm assuming kwargs or args or some better way of feeding kwargs into pool.map exists, but I've no idea
     dirs_to_compress = find_directories_with_files(parent_dir=parent_dir, filenames=valid_dir_if_filenames, all_present=all_present)
-    # exclude_files_from_tarball = [exclude_files_from_tarball] * len(dirs_to_compress)
-    # exclude_filepatterns_from_tarball = [exclude_filepatterns_from_tarball] * len(dirs_to_compress)
-    # keep_after = [keep_after] * len(dirs_to_compress)
-    # files = [files] * len(dirs_to_compress)
-    # file_patterns = [file_patterns] * len(dirs_to_compress)
-    # print_msg = [print_msg] * len(dirs_to_compress)
-    # inside_dir = [inside_dir] * len(dirs_to_compress)
-
     parallelise(compress_and_cleanup,
                 dirs_to_compress,
                 max_workers=max_workers,
