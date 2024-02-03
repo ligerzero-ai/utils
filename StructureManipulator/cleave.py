@@ -284,3 +284,45 @@ def cleave_structure_around_solutes(structure,
         cleaved_struct = cleave_structure(structure,cleave_line_coord=cp,cleave_vacuum_length=cleave_vacuum_length, axis=axis)
         cleaved_struct_list.append(cleaved_struct)
     return cleaved_struct_list
+
+def cleave_structures_around_site(structure, site_index, axis=2, cleave_vacuum_length=6, site_dist_threshold=5, tolerance=0.01, add_vacuum_block_length=None, fractional=True):
+    """
+    Cleaves a structure around a specified site. Assumes vacuum is already present! 
+    If not, add vacuum before this.
+
+    Parameters:
+    - structure (pymatgen.Structure): Structure object.
+    - site_index (int): Index of the site around which to cleave the structure.
+    - axis (int): Axis along which to cleave the structure.
+    - cleave_vacuum_length (float): Size of vacuum to create between the two cleaved parts.
+    - site_dist_threshold (float): Distance threshold to determine the cleave position.
+    - tolerance (float): Tolerance for considering values as equal.
+    - add_vacuum_block_length (float, optional): Additional vacuum block length to add before cleaving.
+    - fractional (bool): If True, uses fractional coordinates; otherwise, uses absolute coordinates.
+
+    Returns:
+    - list: List of pymatgen.Structure objects representing cleaved structures.
+    """
+    if add_vacuum_block_length is not None:
+        structure = add_vacuum(structure, vacuum=add_vacuum_block_length)
+
+    site_coord = structure[site_index].frac_coords[axis] if fractional else structure[site_index].coords[axis]
+
+    # Determine the range of coordinates around the specified site
+    min_coord = site_coord - site_dist_threshold/structure.lattice.abc[axis]
+    max_coord = site_coord + site_dist_threshold/structure.lattice.abc[axis]
+
+    # Get unique values in the specified axis within the tolerance
+    coords = structure.frac_coords if fractional else structure.cart_coords
+    atomic_layers = get_unique_values_in_nth_value(coords, axis, tolerance=tolerance)
+
+    # Compute average pairs and filter them based on min and max coordinates
+    cp_list = compute_average_pairs(atomic_layers)
+    cp_viable = [cp for cp in cp_list if min_coord <= cp <= max_coord]
+
+    cleaved_struct_list = []
+    for cp in cp_viable:
+        cleaved_struct = cleave_structure(structure, cleave_line_coord=cp, cleave_vacuum_length=cleave_vacuum_length, axis=axis, fractional=fractional)
+        cleaved_struct_list.append(cleaved_struct)
+
+    return cleaved_struct_list
