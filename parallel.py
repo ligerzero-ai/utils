@@ -68,7 +68,6 @@ def parallelise(func, args_list, **kwargs_list):
     # Determine the number of processors to use
     num_processors = min(len(args_list), max_workers or cpu_count())
     print(f"# Processes: {len(args_list)}, Processors available: {cpu_count()}, CPUs used: {num_processors}")
-    print(combined_args)
     # Execute the function in parallel
     with Pool(processes=num_processors) as pool:
         results = pool.starmap(func, tuple(combined_args))
