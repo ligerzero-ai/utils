@@ -368,6 +368,7 @@ class DatabaseGenerator():
                  max_workers=16):
         self.parent_dir = parent_dir
         self.max_workers = max_workers
+
     def build_database(self,
                     target_directory = None,
                     extract_directories = False,
@@ -380,8 +381,9 @@ class DatabaseGenerator():
                     max_dir_count = None,
                     filenames_to_qualify=["vasp.log", "INCAR", "POTCAR", "CONTCAR", "KPOINTS", "OUTCAR", "vasprun.xml"],
                     all_present=False,
-                    df_filename = None):
-        
+                    df_filename = None,
+                    df_compression=True):  # Added database_compression flag with default True
+
         start_time = time.time()
         
         if target_directory:
@@ -398,10 +400,11 @@ class DatabaseGenerator():
                                          tarball_extensions = tarball_extensions)
         print(f"The total number of vasp directories that we are building the database out of is {len(dirs)}")
         
+        compression_option = 'gzip' if df_compression else None
+        compression_extension = '.gz' if df_compression else ''
+    
         if max_dir_count:
-
             pkl_filenames = []
-            
             for i, chunks in enumerate(gen_tools.chunk_list(dirs, max_dir_count)):
                 step_time = time.time()
                 df = pd.concat(parallelise(parse_vasp_directory, 
@@ -410,25 +413,24 @@ class DatabaseGenerator():
                                             extract_error_dirs=read_error_dirs, 
                                             parse_all_in_dir=read_multiple_runs_in_dir))
                 if df_filename:
-                    db_filename = f"{i}_{df_filename}.pkl"
+                    db_filename = f"{i}_{df_filename}.pkl{compression_extension}"
                 else:
-                    db_filename = f"{i}.pkl"
+                    db_filename = f"{i}.pkl{compression_extension}"
                 pkl_filenames.append(os.path.join(self.parent_dir, db_filename))
-                df.to_pickle(os.path.join(self.parent_dir, db_filename))
-                step_taken_time = np.round(time.time() - step_time ,3)
+                df.to_pickle(os.path.join(self.parent_dir, db_filename), compression=compression_option)
+                step_taken_time = np.round(time.time() - step_time, 3)
                 print(f"Step {i}: {step_taken_time} seconds taken for {len(chunks)} parse steps")
-                
-            df = pd.concat([pd.read_pickle(partial_df) for partial_df in pkl_filenames])
-            df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
             
+            df = pd.concat([pd.read_pickle(partial_df, compression=compression_option) for partial_df in pkl_filenames])
+            final_db_filename = os.path.join(self.parent_dir, f"vasp_database.pkl{compression_extension}")
+            df.to_pickle(final_db_filename, compression=compression_option)
         else:
             df = pd.concat(parallelise(parse_vasp_directory, 
                                         [(chunk,) for chunk in chunks],
                                         max_workers=self.max_workers,
                                         extract_error_dirs=read_error_dirs, 
                                         parse_all_in_dir=read_multiple_runs_in_dir))
-            if df_filename:
-                df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl"))
+            df.to_pickle(os.path.join(self.parent_dir, f"vasp_database.pkl{compression_extension}"), compression=compression_option)
         
         end_time = time.time()
         elapsed_time = end_time - start_time
