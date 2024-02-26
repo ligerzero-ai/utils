@@ -33,8 +33,8 @@ def main():
                                 cleanup=False,
                                 keep_filenames_after_cleanup=[],
                                 keep_filename_patterns_after_cleanup=[],
-                                filenames_to_qualify=["vasp.log", "INCAR", "POTCAR", "CONTCAR", "KPOINTS", "OUTCAR", "vasprun.xml"],
-                                all_present=False,
+                                filenames_to_qualify=["OUTCAR", "vasprun.xml"],
+                                all_present=True,
                                 df_filename=None,
                                 df_compression=True)
 
