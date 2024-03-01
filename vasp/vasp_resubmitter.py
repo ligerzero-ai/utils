@@ -145,6 +145,13 @@ class CalculationConverger():
                                 CPU = CPU,
                                 walltime = walltime,
                                 cpu_per_node=cpu_per_node)
+        elif calc_type=="base":
+            self.reconverge_base(dirpath,
+                    HPC = HPC,
+                    VASP_version = VASP_version,
+                    CPU = CPU,
+                    walltime = walltime,
+                    cpu_per_node=cpu_per_node)
             
     # Function to find the latest error_run folder index
     def find_latest_error_run_index(self, dirpath):
@@ -159,6 +166,43 @@ class CalculationConverger():
                     print(f"Exception occurred at {dirpath}: {e}")
         return max(error_run_indices)    
     
+    def reconverge_base(self,
+                       dirpath,
+                       HPC = "Setonix",
+                       VASP_version = "5.4.4",
+                       CPU = 128,
+                       walltime = 24,
+                       cpu_per_node=128
+                       ):
+
+        # User inputs for the SDRS template
+        user_inputs = {
+            '{VASPOUTPUTFILENAME}': '"vasp.log"',
+            '{MAXCUSTODIANERRORS}': "20"
+        }
+
+        # Generate a string representation from template_Static.py
+        template_path_static = os.path.join(self.script_template_dir,"template_BASE.py")
+        custodian_string = jobfile._replace_fields(template_path_static, user_inputs)
+        script_name = os.path.join(self.script_template_dir, f"BASE_Custodian_{HPC}.sh")
+        
+        job = jobfile(file_path = script_name,
+                    HPC = HPC,
+                    VASP_version = VASP_version,
+                    CPU = CPU,
+                    walltime = walltime,
+                    cpu_per_node=cpu_per_node,
+                    generic_insert_field=["{CUSTODIANSTRING}"],
+                    generic_insert=[custodian_string])
+        
+        target_script_name = f"{os.path.basename(dirpath)}.sh"
+        job.to_file(job_name=target_script_name,
+                    output_path=dirpath)
+        
+        # print(job.to_string())
+        # Submit to the queue using the error_run_n folder
+        self.submit_to_queue(dirpath, target_script_name)        
+        
     def reconverge_static(self,
                        dirpath,
                        HPC = "Setonix",
