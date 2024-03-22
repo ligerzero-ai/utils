@@ -299,7 +299,7 @@ class Outcar(object):
         return self._get_cells_praser(lines=lines, trigger_indices=trigger_indices)
 
     @staticmethod
-    def get_stresses(filename="OUTCAR", lines=None, si_unit=True):
+    def get_stresses(filename="OUTCAR", lines=None, si_unit=False):
         """
 
         Args:
