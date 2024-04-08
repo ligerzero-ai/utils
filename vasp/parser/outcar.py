@@ -99,7 +99,7 @@ class Outcar(object):
         self.parse_dict["fermi_level"] = fermi_level
         self.parse_dict["scf_dipole_moments"] = scf_moments
         self.parse_dict["kin_energy_error"] = kin_energy_error
-        self.parse_dict["stresses"] = stresses * KBAR_TO_EVA
+        self.parse_dict["stresses"] = stresses
         self.parse_dict["irreducible_kpoints"] = irreducible_kpoints
         self.parse_dict["irreducible_kpoint_weights"] = ir_kpt_weights
         self.parse_dict["number_plane_waves"] = plane_waves
