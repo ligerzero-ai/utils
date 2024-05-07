@@ -200,21 +200,6 @@ def periodic_table_plot(plot_df,
     plt.close()
     return fig, ax
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.colors import Normalize
-from matplotlib.path import Path
-import pandas as pd
-import numpy as np
-import os
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.colors import Normalize
-import numpy as np
-import pandas as pd
-import os
-
 def periodic_table_dual_plot(plot_df, 
                         property1="Eseg_min1",
                         property2="Eseg_min2",  # New property
@@ -247,6 +232,11 @@ def periodic_table_dual_plot(plot_df,
     rw = 0.9  # rectangle width
     rh = rw    # rectangle height
 
+    if count_min1 is None or count_min2 is None or count_max1 is None or count_max2 is None:
+        show_symbols = False
+    else:
+        show_symbols = True
+    
     if count_min1 is None:
         count_min1 = plot_df[property1].min()
     if count_max1 is None:
@@ -310,43 +300,12 @@ def periodic_table_dual_plot(plot_df,
                  fontsize=22,  # Adjusted for visibility
                  fontweight='semibold',
                  color=element_font_color)
-
-    # Generate the color bar
-    granularity = 20
-    colormap_array = np.linspace(norm1.vmin, norm1.vmax, granularity) if center_point1 is None else np.linspace(center_point1- max_diff, center_point1 + max_diff, granularity)
-    
-    for i, value in enumerate(colormap_array):
-        color = cmap1(norm1(value))
-        color = 'silver' if value == 0 else color
-        length = 9
-        x_offset = 3.5
-        y_offset = 7.8
-        x_loc = i / granularity * length + x_offset
-        width = length / granularity
-        height = 0.35
-        rect = patches.Rectangle((x_loc, y_offset), width, height,
-                                 linewidth=1.5,
-                                 edgecolor='gray',
-                                 facecolor=color,
-                                 alpha=1)
-
-        if i in [0, granularity//4, granularity//2, 3*granularity//4, granularity-1]:
-            plt.text(x_loc + width / 2, y_offset - 0.4, f'{value:.1f}',
-                     horizontalalignment='center',
-                     verticalalignment='center',
-                     fontweight='semibold',
-                     fontsize=20, color='k')
-
-        ax.add_patch(rect)
-
-    if property_name1 is None:
-        property_name1 = property_name1
-    plt.text(x_offset + length / 2, y_offset + 1.0,
-             property_name1,
-             horizontalalignment='center',
-             verticalalignment='center',
-             fontweight='semibold',
-             fontsize=20, color='k')
+    position1 = 3.5, 7.8
+    position2 = 3.5, 9.4
+    # draw_color_bar(fig, ax, norm1, cmap1, property_name1, position1, granularity=20)
+    # draw_color_bar(fig, ax, norm2, cmap2, property_name2, position2, granularity=20)
+    draw_color_bar(fig, ax, norm1, cmap1, property_name1, position1, show_symbols, granularity=20)
+    draw_color_bar(fig, ax, norm2, cmap2, property_name2, position2, show_symbols, granularity=20)
 
     ax.set_ylim(-0.15, n_row + .1)
     ax.set_xlim(0.85, n_column + 1.1)
@@ -356,3 +315,56 @@ def periodic_table_dual_plot(plot_df,
     plt.pause(0.001)
     plt.close()
     return fig, ax
+
+def draw_color_bar(fig, ax, norm, cmap, property_name, position, show_symbols=True, granularity=20):
+    colormap_array = np.linspace(norm.vmin, norm.vmax, granularity)
+    
+    length = 9
+    width = length / granularity
+    height = 0.35
+    x_offset, y_offset = position
+
+    for i, value in enumerate(colormap_array):
+        color = cmap(norm(value))
+        color = 'silver' if value == 0 and not norm.vmin <= 0 <= norm.vmax else color
+        x_loc = i / granularity * length + x_offset
+        
+        rect = patches.Rectangle((x_loc, y_offset), width, height,
+                                 linewidth=1.5,
+                                 edgecolor='gray',
+                                 facecolor=color,
+                                 alpha=1)
+        ax.add_patch(rect)
+
+        if i in [0, granularity//4, granularity//2, 3*granularity//4, granularity-1]:
+            label = f'{value:.1f}'
+            if show_symbols:
+                if i == 0:
+                    label = "<" + label
+                elif i == granularity - 1:
+                    label = ">" + label
+            
+            plt.text(x_loc + width / 2, y_offset - 0.4, label,
+                     horizontalalignment='center',
+                     verticalalignment='center',
+                     fontweight='semibold',
+                     fontsize=20, color='k')
+
+    plt.text(x_offset + length / 2, y_offset + 0.75,
+             property_name,
+             horizontalalignment='center',
+             verticalalignment='center',
+             fontweight='semibold',
+             fontsize=24, color='k')
+
+
+
+# Example of how to use the function
+# fig, ax = plt.subplots(figsize=(12, 8))
+# norm1 = Normalize(vmin=-1, vmax=1)  # Example normalization
+# cmap1 = plt.cm.coolwarm  # Example colormap
+# property_name1 = "Example Property"  # Example property name
+# position1 = (0.5, 0.2)  # Example position for the color bar
+
+# draw_color_bar(fig, ax, norm1, cmap1, property_name1, position1, granularity=20)
+# plt.show()
