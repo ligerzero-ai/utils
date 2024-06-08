@@ -3,20 +3,17 @@ import os
 import shutil
 import tarfile
 import tempfile
+import warnings
 
 import numpy as np
 import pandas as pd
-
 from pymatgen.core import Structure
 from pymatgen.io.vasp import Incar, Kpoints, Vasprun
 
 from utils.vasp.parser.outcar import Outcar
-# from utils.vasp.vasp import check_convergence
-#from utils.vasp.vasp import read_OUTCAR
-import warnings
 import utils.generic as gen_tools
 
-def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplog="vasp.log", backup_vasplog = "error.out"):
+def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplog="vasp.log", backup_vasplog="error.out"):
     """
     Check the convergence status of a VASP calculation.
 
@@ -27,16 +24,6 @@ def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplo
 
     Returns:
         bool: True if the calculation has converged, False otherwise.
-
-    Raises:
-        FileNotFoundError: If neither vasprun.xml nor vasp.log is found.
-
-    Example:
-        >>> convergence_status = check_convergence(directory="/path/to/vasp_files")
-        >>> if convergence_status:
-        ...     print("Calculation has converged.")
-        ... else:
-        ...     print("Calculation has not converged.")
     """
     try:
         vr = Vasprun(filename=os.path.join(directory, filename_vasprun))
@@ -44,168 +31,115 @@ def check_convergence(directory, filename_vasprun="vasprun.xml", filename_vasplo
     except:
         line_converged = "reached required accuracy - stopping structural energy minimisation"
         try:
-            converged = gen_tools.is_line_in_file(filepath=os.path.join(directory, filename_vasplog),
-                                        line=line_converged,
-                                        exact_match=False)
-            return converged
+            return gen_tools.is_line_in_file(os.path.join(directory, filename_vasplog), line=line_converged, exact_match=False)
         except:
             try:
-                converged = gen_tools.is_line_in_file(filepath=os.path.join(directory, backup_vasplog),
-                            line=line_converged,
-                            exact_match=False)
-                return converged
+                return gen_tools.is_line_in_file(os.path.join(directory, backup_vasplog), line=line_converged, exact_match=False)
             except:
                 return False
-            
+
 def process_error_archives(directory):
     """
     Processes all tar or tar.gz files starting with 'error' in the specified directory and its subdirectories.
 
     Args:
         directory (str): The directory to search for tar files.
-        process_function (function): A user-defined function that operates on the extracted directory.
 
     Returns:
-        None
+        pd.DataFrame: DataFrame containing the processed VASP outputs from error archives.
     """
-    error_files = []
-    # Walk through the directory and its subdirectories
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            if file.startswith('error') and (file.endswith('.tar') or file.endswith('.tar.gz')):
-                error_files.append(os.path.join(root, file))
+    error_files = [os.path.join(root, file)
+                   for root, dirs, files in os.walk(directory)
+                   for file in files if file.startswith('error') and (file.endswith('.tar') or file.endswith('.tar.gz'))]
     
     df_list = []
     for error_file in error_files:
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Extract the tar file into the temporary directory
             with tarfile.open(error_file, "r:*") as tar:
-                # print(error_file)
                 tar.extractall(path=temp_dir)
-
-            # Apply the user-defined function on the extracted contents
-            df = pd.DataFrame(_get_vasp_outputs(temp_dir))
-            df_list.append(df)
-            # Temporary directory and its contents will be automatically deleted after this block
+            df_list.append(pd.DataFrame(_get_vasp_outputs(temp_dir)))
     
     print(f"Processing error dirs in {directory} complete.")
-    if df_list:
-        return pd.concat(df_list)
-    else:
-        return pd.DataFrame()
+    return pd.concat(df_list) if df_list else pd.DataFrame()
 
-def _get_vasp_outputs_from_files(structure,
-                                outcar_path = "OUTCAR",
-                                 incar_path = "INCAR",
-                                 kpoints_path = "KPOINTS"):
-
-    # Initialize dictionary to hold file data
+def _get_vasp_outputs_from_files(structure, outcar_path="OUTCAR", incar_path="INCAR", kpoints_path="KPOINTS"):
     file_data = {
         "POSCAR": [structure],
         "OUTCAR": [np.nan],
         "INCAR": [np.nan],
         "KPOINTS": [np.nan]
     }
+
     if os.path.isfile(outcar_path):
         try:
             outcar = Outcar()
-            outcar.from_file(filename = outcar_path)
+            outcar.from_file(outcar_path)
             file_data["OUTCAR"] = [outcar]
         except Exception as e:
-            file_data["OUTCAR"] = [np.nan]
             print(f"Error reading OUTCAR file {outcar_path}: {e}")
-            
-    # Try to find INCAR file with same suffix
+
     if os.path.isfile(incar_path):
         try:
             incar = Incar.from_file(incar_path).as_dict()
             file_data["INCAR"] = [incar]
         except Exception as e:
-            file_data["INCAR"] = [np.nan]
             print(f"Error reading INCAR file {incar_path}: {e}")
 
-    # Try to find KPOINTS file with same suffix
     if os.path.isfile(kpoints_path):
         try:
             kpoints = Kpoints.from_file(kpoints_path).as_dict()
             file_data["KPOINTS"] = [kpoints]
         except Exception as e:
-            #print(f"No KPOINTS file (could be just fine, KSPACING in INCAR?) {kpoints_path}: {e}")
             pass
         
     return pd.DataFrame(file_data)
 
-def _get_vasp_outputs(directory,
-                    structure=None,
-                    parse_all_in_dir=True):
-    # Pattern to find OUTCAR files
-    if parse_all_in_dir:
-        outcar_files = glob.glob(os.path.join(directory, "OUTCAR*"))
-    else:
-        outcar_files = glob.glob(os.path.join(directory, "OUTCAR"))
-        
-    # The structure is only necessary for outcar parsing for species assignment
-    # it doesn't actually contribute otherwise to the final output dataframe
+def _get_vasp_outputs(directory, structure=None, parse_all_in_dir=True):
+    outcar_files = glob.glob(os.path.join(directory, "OUTCAR*")) if parse_all_in_dir else glob.glob(os.path.join(directory, "OUTCAR"))
+    
     if structure is None:
         structure = get_structure(directory)
     
-    if len(outcar_files) > 0:
+    if outcar_files:
         data = []
         for outcar_file in outcar_files:
             suffix = os.path.basename(outcar_file).replace("OUTCAR", "")
             incar_file = os.path.join(directory, f"INCAR{suffix}")
             kpoints_file = os.path.join(directory, f"KPOINTS{suffix}")
 
-            output_df = _get_vasp_outputs_from_files(structure,
-                                         outcar_path=outcar_file,
-                                         incar_path=incar_file,
-                                         kpoints_path=kpoints_file)
-
+            output_df = _get_vasp_outputs_from_files(structure, outcar_path=outcar_file, incar_path=incar_file, kpoints_path=kpoints_file)
             data.append(output_df)
         data = pd.concat(data)
     else:
-        data = pd.DataFrame({
-                "POSCAR": [structure],
-                "OUTCAR": [np.nan],
-                "INCAR": [np.nan],
-                "KPOINTS": [np.nan]
-            })
+        data = pd.DataFrame({"POSCAR": [structure], "OUTCAR": [np.nan], "INCAR": [np.nan], "KPOINTS": [np.nan]})
+    
     return data
 
 def get_SCF_cycle_convergence(outcar_scf_arrays, threshold=1e-5):
     diff = outcar_scf_arrays[-1] - outcar_scf_arrays[-2]
-    if abs(diff) < threshold:
-        return True
-    else:
-        return False
-    
+    return abs(diff) < threshold
+
 def _get_KPOINTS_info(KPOINTS, INCAR):
     try:
         if np.isnan(KPOINTS):
             kpoints_key = 'KSPACING'
-            if kpoints_key in INCAR:
-                kpoints = f"KSPACING: {INCAR[kpoints_key]}"
-            else:
-                kpoints = "KSPACING: 0.5"
+            return f"KSPACING: {INCAR.get(kpoints_key, 0.5)}"
         else:
-            kpoints = KPOINTS
+            return KPOINTS
     except Exception as e:
         print(e)
-        kpoints = np.nan
-    return kpoints
-    
+        return np.nan
+
 def process_outcar(outcar, structure):
     if pd.isna(outcar) or pd.isna(structure):
-        
-        if pd.isna(outcar) and pd.isna(structure):
-            warning_message = "Both OUTCAR and structure data are missing. Returning DataFrame with np.nan values."
-        elif pd.isna(outcar):
-            warning_message = "OUTCAR data is missing. Returning DataFrame with np.nan values for OUTCAR-related fields."
-        else:  # pd.isna(structure) must be True
-            warning_message = "Structure data is missing. Returning DataFrame with np.nan values for structure-related fields."
+        warning_message = ("Both OUTCAR and structure data are missing. Returning DataFrame with np.nan values." 
+                           if pd.isna(outcar) and pd.isna(structure) else
+                           "OUTCAR data is missing. Returning DataFrame with np.nan values for OUTCAR-related fields." 
+                           if pd.isna(outcar) else 
+                           "Structure data is missing. Returning DataFrame with np.nan values for structure-related fields.")
         warnings.warn(warning_message)
         
-        df = pd.DataFrame([{
+        return pd.DataFrame([{
             "calc_start_time": np.nan,
             "consumed_time": np.nan,
             "structures": np.nan,
@@ -217,76 +151,68 @@ def process_outcar(outcar, structure):
             "scf_steps": np.nan,
             "scf_convergence": np.nan
         }])
-    else:
-        try:
-            energies = outcar.parse_dict["energies"]
-        except:
-            energies = np.nan
+
+    try:
+        energies = outcar.parse_dict["energies"]
+    except:
+        energies = np.nan
             
-        try:
-            ionic_step_structures = np.array([Structure(cell, structure.species, outcar.parse_dict["positions"][i], coords_are_cartesian=True).to_json()
-                                                for i, cell in enumerate(outcar.parse_dict["cells"])])
-        except:
-            ionic_step_structures = np.nan
+    try:
+        ionic_step_structures = np.array([Structure(cell, structure.species, outcar.parse_dict["positions"][i], coords_are_cartesian=True).to_json()
+                                          for i, cell in enumerate(outcar.parse_dict["cells"])])
+    except:
+        ionic_step_structures = np.nan
+    
+    try:
+        energies_zero =  outcar.parse_dict["energies_zero"]
+    except:
+        energies_zero = np.nan
         
-        try:
-            energies_zero =  outcar.parse_dict["energies_zero"]
-        except:
-            energies_zero = np.nan
-            
-        try:
-            forces = outcar.parse_dict["forces"]
-        except:
-            forces = np.nan
-            
-        try:
-            stresses = outcar.parse_dict["stresses"]
-        except:
-            stresses = np.nan
-            
-        try:
-            magmoms = np.array(outcar.parse_dict["final_magmoms"])
-        except:
-            magmoms = np.nan
-            
-        try:
-            scf_steps = [len(i) for i in outcar.parse_dict["scf_energies"]]
-            scf_conv_list = [get_SCF_cycle_convergence(d, threshold=1e-5) for d in outcar.parse_dict["scf_energies"]]
-        except:
-            scf_steps = np.nan
-            scf_conv_list = np.nan
+    try:
+        forces = outcar.parse_dict["forces"]
+    except:
+        forces = np.nan
         
-        try:
-            calc_start_time = outcar.parse_dict["execution_datetime"]
-        except:
-            calc_start_time = np.nan
+    try:
+        stresses = outcar.parse_dict["stresses"]
+    except:
+        stresses = np.nan
         
-        try:
-            consumed_time = outcar.parse_dict["resources"]
-        except:
-            consumed_time = np.nan
-            
-        df = pd.DataFrame([[calc_start_time,
-                            consumed_time,
-                            ionic_step_structures,
-                            energies,
-                            energies_zero,
-                            forces,
-                            stresses,
-                            magmoms,
-                            scf_steps,
-                            scf_conv_list]],
-                    columns = ["calc_start_time",
-                                "consumed_time",
-                                "structures",
-                                "energy",
-                                "energy_zero",
-                                "forces",
-                                "stresses",
-                                "magmoms",
-                                "scf_steps",
-                                "scf_convergence"])    
-    return df
+    try:
+        magmoms = np.array(outcar.parse_dict["final_magmoms"])
+    except:
+        magmoms = np.nan
+        
+    try:
+        scf_steps = [len(i) for i in outcar.parse_dict["scf_energies"]]
+        scf_conv_list = [get_SCF_cycle_convergence(d, threshold=outcar.parse_dict["electronic_stop_criteria"]) for d in outcar.parse_dict["scf_energies"]]
+    except Exception as e:
+        print(e)
+        scf_steps = np.nan
+        scf_conv_list = np.nan
+    
+    try:
+        calc_start_time = outcar.parse_dict["execution_datetime"]
+    except:
+        calc_start_time = np.nan
+    
+    try:
+        consumed_time = outcar.parse_dict["resources"]
+    except:
+        consumed_time = np.nan
+        
+    return pd.DataFrame([{
+        "calc_start_time": calc_start_time,
+        "consumed_time": consumed_time,
+        "structures": ionic_step_structures,
+        "energy": energies,
+        "energy_zero": energies_zero,
+        "forces": forces,
+        "stresses": stresses,
+        "magmoms": magmoms,
+        "scf_steps": scf_steps,
+        "scf_convergence": scf_conv_list
+    }])
 
 def get_structure(directory):
     """
@@ -298,10 +224,7 @@ def get_structure(directory):
     Returns:
         pymatgen.core.Structure: The structure object if successful, None otherwise.
     """
-    structure_filenames = [
-        "CONTCAR",
-        "POSCAR",
-    ] + glob.glob(os.path.join(directory, "starter*.vasp"))
+    structure_filenames = ["CONTCAR", "POSCAR"] + glob.glob(os.path.join(directory, "starter*.vasp"))
 
     for filename in structure_filenames:
         try:
@@ -312,44 +235,33 @@ def get_structure(directory):
     print("Failed to parse appropriate structure file completely")
     return np.nan
 
-def get_vasp_outputs(directory,
-                     extract_error_dirs=True,
-                     parse_all_in_dir=True):
-    
-    df_direct_outputs = _get_vasp_outputs(directory,
-                                          parse_all_in_dir=parse_all_in_dir)
-    if extract_error_dirs:
-        df_error_outputs = process_error_archives(directory)
-    else:
-        df_error_outputs = pd.DataFrame()
-    df_all = pd.concat([df_direct_outputs, df_error_outputs])
-    return df_all
+def get_vasp_outputs(directory, extract_error_dirs=True, parse_all_in_dir=True):
+    df_direct_outputs = _get_vasp_outputs(directory, parse_all_in_dir=parse_all_in_dir)
+    df_error_outputs = process_error_archives(directory) if extract_error_dirs else pd.DataFrame()
+    return pd.concat([df_direct_outputs, df_error_outputs])
 
-def grab_electron_info(directory_path, line_before_elec_str="PAW_PBE", potcar_filename = "POTCAR"):
-    
+def grab_electron_info(directory_path, line_before_elec_str="PAW_PBE", potcar_filename="POTCAR"):
     structure = get_structure(directory_path)
-    if structure != None:
+    if structure:
         element_list, element_count = element_count_ordered(structure)
         
     electron_of_potcar = []
-    
     with open(os.path.join(directory_path, potcar_filename), 'r') as file:
-        lines = file.readlines()  # Read the lines from the file
-        should_append = False  # Flag to determine if the next line should be appended
+        lines = file.readlines()
+        should_append = False
         for line in lines:
-            stripped_line = line.strip()  # Remove leading and trailing whitespace
+            stripped_line = line.strip()
             if should_append:
                 electron_of_potcar.append(float(stripped_line))
-                should_append = False  # Reset the flag
+                should_append = False
             if stripped_line.startswith(line_before_elec_str):
-                should_append = True  # Set the flag to append the next line
+                should_append = True
         
     return element_list, element_count, electron_of_potcar
 
-def get_total_electron_count(directory_path, line_before_elec_str="PAW_PBE", potcar_filename = "POTCAR"):
-    ele_list, ele_count, electron_of_potcar = grab_electron_info(directory_path=directory_path, line_before_elec_str=line_before_elec_str, potcar_filename=potcar_filename)
-    total_electron_count = np.dot(ele_count, electron_of_potcar)
-    return total_electron_count
+def get_total_electron_count(directory_path, line_before_elec_str="PAW_PBE", potcar_filename="POTCAR"):
+    ele_list, ele_count, electron_of_potcar = grab_electron_info(directory_path, line_before_elec_str, potcar_filename)
+    return np.dot(ele_count, electron_of_potcar)
 
 def element_count_ordered(structure):
     site_element_list = [site.species_string for site in structure]
@@ -368,34 +280,31 @@ def element_count_ordered(structure):
     element_count.append(count)
     return element_list, element_count 
 
-def parse_vasp_directory(directory,
-                         extract_error_dirs=True,
-                         parse_all_in_dir=True):
-    df = get_vasp_outputs(directory,
-                          extract_error_dirs=extract_error_dirs,
-                          parse_all_in_dir=parse_all_in_dir)
+def parse_vasp_directory(directory, extract_error_dirs=True, parse_all_in_dir=True):
+    df = get_vasp_outputs(directory, extract_error_dirs=extract_error_dirs, parse_all_in_dir=parse_all_in_dir)
     results_df = []
     kpoints_list = []
     for _, row in df.iterrows():
         results_df.append(process_outcar(row.OUTCAR, row.POSCAR))
-        kpoints_list.append(_get_KPOINTS_info(row.KPOINTS,row.INCAR))
+        kpoints_list.append(_get_KPOINTS_info(row.KPOINTS, row.INCAR))
 
-    results_df = pd.concat(results_df).sort_values(by="calc_start_time")   
+    results_df = pd.concat(results_df).sort_values(by="calc_start_time")
     results_df["KPOINTS"] = kpoints_list
     results_df["INCAR"] = df["INCAR"].tolist()
     
     try:
-        element_list, element_count, electron_of_potcar = grab_electron_info(directory_path=directory,
-                                                                            potcar_filename="POTCAR")
+        element_list, element_count, electron_of_potcar = grab_electron_info(directory_path=directory, potcar_filename="POTCAR")
     except:
         element_list = np.nan
         element_count = np.nan
         electron_of_potcar = np.nan
+
     try:
         electron_count = get_total_electron_count(directory_path=directory)
     except Exception as e:
         print(e)
         electron_count = np.nan
+
     results_df["element_list"] = [element_list] * len(results_df)
     results_df["element_count"] = [element_count] * len(results_df)
     results_df["electron_count"] = [electron_count] * len(results_df)

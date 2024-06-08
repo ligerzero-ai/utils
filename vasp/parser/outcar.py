@@ -69,6 +69,7 @@ class Outcar(object):
         memory_used = self.get_memory_used(filename=filename, lines=lines)
         vasp_version = self.get_vasp_version(filename=filename, lines=lines)
         run_datetime = self.get_datetime(filename=filename, lines=lines)
+
         try:
             (
                 irreducible_kpoints,
@@ -119,6 +120,11 @@ class Outcar(object):
             "elapsed_time": elapsed_time,
             "memory_used": memory_used,
         }
+        self.parse_dict["ionic_stop_criteria"] = self.get_ionic_stop_criteria(filename=filename)
+        self.parse_dict["electronic_stop_criteria"] = self.get_electronic_stop_criteria(filename=filename)
+        self.parse_dict["max_electronic_steps"] = self.get_electronic_stop_criteria(filename=filename)    
+        self.parse_dict["max_ionic_steps"] = self.get_electronic_stop_criteria(filename=filename)    
+
         try:
             self.parse_dict["pressures"] = (
                 np.average(stresses[:, 0:3], axis=1) * KBAR_TO_EVA
@@ -171,8 +177,30 @@ class Outcar(object):
         """
         with hdf.open(group_name) as hdf5_output:
             for key in hdf5_output.list_nodes():
-                self.parse_dict[key] = hdf5_output[key]
-
+                self.parse_dict[key] = hdf5_output[key]     
+                
+    def extract_value_from_line(self, line, position = 1, split = "="):
+        parts = line.split(split)
+        if len(parts) > 1:
+            return float(parts[position].strip().split()[0].strip(";"))
+        return None
+               
+    def find_and_extract_value_from_matched_line(self, filename, search_term):
+        with open(filename, 'r') as file:
+            for line in file:
+                if search_term in line:
+                    value = self.extract_value_from_line(line)
+        return value              
+      
+    def get_ionic_stop_criteria(self, filename="OUTCAR"):
+        return self.find_and_extract_value_from_matched_line(filename, "stopping-criterion for IOM")
+    
+    def get_electronic_stop_criteria(self, filename="OUTCAR"):
+        return self.find_and_extract_value_from_matched_line(filename, "stopping-criterion for ELM")
+    
+    def get_max_electronic_steps(self, filename="OUTCAR"):
+        return self.find_and_extract_value_from_matched_line(filename, "NELM")
+    
     def get_vasp_version(self, filename="OUTCAR", lines=None):
         return lines[0].lstrip().split(sep=" ")[0]
 

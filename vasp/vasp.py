@@ -361,6 +361,72 @@ def find_converged_dirs(parent_dir):
     converged_dirs = [directory for directory, convergence in dir_and_convergence if convergence]
     return converged_dirs
 
+def flatten_all_iterables(input_list):
+    flat_list = []
+    for item in input_list:
+        if isinstance(item, (list, tuple, np.ndarray)):  # Now also checks for numpy arrays
+            flat_list.extend(item)  # Extend the flat list with elements of the iterable
+        else:
+            flat_list.append(item)  # Add the item directly if it's not an iterable
+    return flat_list
+
+def find_significantly_different_indices_threshold(values, threshold):
+    if not values:
+        return []
+    significant_indices = [0]
+    last_significant_value = values[0]
+    for i, current_value in enumerate(values[1:], start=1):
+        if abs(current_value - last_significant_value) >= threshold:
+            significant_indices.append(i)
+            last_significant_value = current_value
+    return significant_indices
+
+def exclude_non_converged_data(df, columns_to_exclude_data):
+    def process_row(row):
+        non_converged_indices = [i for i, conv in enumerate(row["scf_convergence"]) if not conv]
+        for column in columns_to_exclude_data:
+            if column in row:  # Check if column is in row to avoid KeyError
+                row[column] = [value for i, value in enumerate(row[column]) if i not in non_converged_indices]
+        return row
+
+    processed_df = df.apply(process_row, axis=1)
+    return processed_df
+
+def get_flattened_df(df,
+                     groupby = "filepath",
+                     columns_to_process=["energy", "energy_zero", "structures", "forces", "magmoms", "stresses", "scf_steps", "scf_convergence"]):
+    processed_df = df.sort_values("calc_start_time").groupby(groupby).agg(lambda x: x.tolist()).reset_index().copy()
+    for column in columns_to_process:
+        processed_df[column] = processed_df[column].apply(flatten_all_iterables)
+    return processed_df
+
+def get_filtered_df(df,
+                    energy_threshold=0.05,
+                    columns=["energy", "energy_zero", "structures", "forces", "magmoms", "stresses", "scf_steps", "scf_convergence"]):
+    def process_row(row, column="energy", columns_to_flatten=columns):
+        indices = find_significantly_different_indices_threshold(row[column], energy_threshold)
+        processed_row = {col: (row[col] if col not in columns_to_flatten else [row[col][i] for i in indices]) for col in df.columns}
+        return processed_row
+    significant_changes = df.apply(process_row, axis=1)
+    significant_changes_df = pd.DataFrame(list(significant_changes))
+
+    if 'job_name' in significant_changes_df.columns:
+        significant_changes_df["job_name"] = [row.job_name[0] for _, row in significant_changes_df.iterrows()]
+        
+    return significant_changes_df
+
+def get_potential_data_df(df,
+                          energy_threshold=0.05,
+                          columns_to_process=["energy", "energy_zero", "structures", "forces", "magmoms", "stresses", "scf_steps", "scf_convergence"],
+                          ):
+    processed_df = get_flattened_df(df)
+    processed_df = get_filtered_df(processed_df,
+                                   energy_threshold=energy_threshold,
+                                   columns=["energy", "energy_zero", "structures", "forces", "magmoms", "stresses", "scf_steps", "scf_convergence"])
+    non_corr_df = exclude_non_converged_data(processed_df, columns_to_process)
+
+    return non_corr_df
+
 class DatabaseGenerator():
     
     def __init__(self,
@@ -402,7 +468,7 @@ class DatabaseGenerator():
         
         compression_option = 'gzip' if df_compression else None
         compression_extension = '.gz' if df_compression else ''
-    
+        
         if max_dir_count:
             pkl_filenames = []
             for i, chunks in enumerate(gen_tools.chunk_list(dirs, max_dir_count)):
@@ -448,44 +514,63 @@ class DatabaseGenerator():
 
         return df
     
-    def update_database(self,
-                    new_calculation_directory,
-                    existing_database_filename = "vasp_database.pkl",
-                    extract_directories = True,
-                    cleanup=False,
-                    keep_filenames_after_cleanup = [],
-                    keep_filename_patterns_after_cleanup = [],
-                    max_dir_count = None,
-                    df_filename = None):
+    def update_failed_jobs(self, df_path, read_error_dirs=False, read_multiple_runs_in_dir=False, df_compression=True):
+        compression_option = 'gzip' if df_compression else None
+        compression_extension = '.gz' if df_compression else ''
         
-        update_df = self.build_database(target_directory = existing_database_filename,
-                                        extract_directories = extract_directories,
-                                        cleanup=cleanup,
-                                        keep_filenames_after_cleanup = keep_filenames_after_cleanup,
-                                        keep_filename_patterns_after_cleanup = keep_filename_patterns_after_cleanup,
-                                        max_dir_count = max_dir_count,
-                                        df_filename = df_filename)
-        def _get_job_dir(filepath):
-            return os.path.basename(filepath.rstrip("/OUTCAR"))
+        df = pd.read_pickle(df_path, compression=compression_option)
+        failed_dirs = df[df['convergence'] == False]['directory'].tolist()
+        print(f"Reparsing {len(failed_dirs)} directories where convergence is False")
         
-        update_df["job_dir"] = [_get_job_dir(row.filepath) for _, row in update_df.iterrows()]
-        base_df["job_dir"] = [_get_job_dir(row.filepath) for _, row in base_df.iterrows()]
+        failed_df = pd.concat(parallelise(parse_vasp_directory, 
+                                          [(chunk,) for chunk in failed_dirs],
+                                          max_workers=self.max_workers,
+                                          extract_error_dirs=read_error_dirs, 
+                                          parse_all_in_dir=read_multiple_runs_in_dir))
+        
+        df.update(failed_df)
+        
+        df.to_pickle(df_path, compression=compression_option)
+        print(f"Updated dataframe saved to {df_path}")
+        return df
+    # def update_database(self,
+    #                 new_calculation_directory,
+    #                 existing_database_filename = "vasp_database.pkl",
+    #                 extract_directories = True,
+    #                 cleanup=False,
+    #                 keep_filenames_after_cleanup = [],
+    #                 keep_filename_patterns_after_cleanup = [],
+    #                 max_dir_count = None,
+    #                 df_filename = None):
+        
+    #     update_df = self.build_database(target_directory = existing_database_filename,
+    #                                     extract_directories = extract_directories,
+    #                                     cleanup=cleanup,
+    #                                     keep_filenames_after_cleanup = keep_filenames_after_cleanup,
+    #                                     keep_filename_patterns_after_cleanup = keep_filename_patterns_after_cleanup,
+    #                                     max_dir_count = max_dir_count,
+    #                                     df_filename = df_filename)
+    #     def _get_job_dir(filepath):
+    #         return os.path.basename(filepath.rstrip("/OUTCAR"))
+        
+    #     update_df["job_dir"] = [_get_job_dir(row.filepath) for _, row in update_df.iterrows()]
+    #     base_df["job_dir"] = [_get_job_dir(row.filepath) for _, row in base_df.iterrows()]
 
-        base_df = pd.read_pickle(existing_database_filename)
+    #     base_df = pd.read_pickle(existing_database_filename)
         
-        # Merge df1 and df2 based on the common dirname
-        interm_df = base_df.merge(update_df, on='job_dir', suffixes=('_df1', '_df2'), how='left')
+    #     # Merge df1 and df2 based on the common dirname
+    #     interm_df = base_df.merge(update_df, on='job_dir', suffixes=('_df1', '_df2'), how='left')
 
-        # Loop through the columns and update them dynamically
-        for column in base_df.columns:
-            if column not in ('filepath', 'job_dir'):
-                # Check if the column with suffix '_df2' exists
-                if (f'{column}_df2' in interm_df.columns):
-                    base_df[column].update(interm_df[column + '_df2'].combine_first(interm_df[column + '_df1']))
+    #     # Loop through the columns and update them dynamically
+    #     for column in base_df.columns:
+    #         if column not in ('filepath', 'job_dir'):
+    #             # Check if the column with suffix '_df2' exists
+    #             if (f'{column}_df2' in interm_df.columns):
+    #                 base_df[column].update(interm_df[column + '_df2'].combine_first(interm_df[column + '_df1']))
                     
-        base_df.drop(columns=['job_dir'], inplace=True)
+    #     base_df.drop(columns=['job_dir'], inplace=True)
         
-        return base_df
+    #     return base_df
 
 def update_database(df_base, df_update):
     # Get the unique job names from df2
@@ -497,7 +582,6 @@ def update_database(df_base, df_update):
     # Append df2 to the filtered df1
     merged_df = pd.concat([df_base, df_update_jobs], ignore_index=True)
     return merged_df
-
 def robust_append_last(clist, value):
     try:
         clist.append(value[-1])
