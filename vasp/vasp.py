@@ -514,12 +514,15 @@ class DatabaseGenerator():
 
         return df
     
-    def update_failed_jobs(self, df_path, read_error_dirs=False, read_multiple_runs_in_dir=False, df_compression=True):
+    def update_failed_jobs_in_database(self, df_path = None, read_error_dirs=False, read_multiple_runs_in_dir=False, df_compression=True):
         compression_option = 'gzip' if df_compression else None
         compression_extension = '.gz' if df_compression else ''
-        
-        df = pd.read_pickle(df_path, compression=compression_option)
-        failed_dirs = df[df['convergence'] == False]['directory'].tolist()
+        if df_path == None:
+            df_path = os.path.join(self.parent_dir, f"vasp_database.pkl{compression_extension}")
+            df = pd.read_pickle(df_path, compression=compression_option)
+        else:
+            df = pd.read_pickle(df_path, compression=compression_option)
+        failed_dirs = df[df['convergence'] == False]['filepath'].tolist()
         print(f"Reparsing {len(failed_dirs)} directories where convergence is False")
         
         failed_df = pd.concat(parallelise(parse_vasp_directory, 
@@ -527,9 +530,7 @@ class DatabaseGenerator():
                                           max_workers=self.max_workers,
                                           extract_error_dirs=read_error_dirs, 
                                           parse_all_in_dir=read_multiple_runs_in_dir))
-        
         df.update(failed_df)
-        
         df.to_pickle(df_path, compression=compression_option)
         print(f"Updated dataframe saved to {df_path}")
         return df
