@@ -526,8 +526,10 @@ class DatabaseGenerator():
                 os.path.join(df_path, "vasp_database.pkl.gz"),
                 os.path.join(df_path, "vasp_database.pkl")
             ]
+            output_path = os.path.join(df_path, f"vasp_database.pkl{compression_extension}")
         else:
             potential_files = [df_path]
+            output_path = df_path
         
         df = None
         for file in potential_files:
@@ -580,8 +582,8 @@ class DatabaseGenerator():
         # Use a different method to merge the DataFrames
         df.update(failed_df, overwrite=True, filter_func=lambda x: not pd.isna(x))
 
-        df.to_pickle(df_path, compression=compression_option)
-        print(f"Updated dataframe saved to {df_path}")
+        df.to_pickle(output_path, compression=compression_option)
+        print(f"Updated dataframe saved to {output_path}")
         return df
     # def update_database(self,
     #                 new_calculation_directory,
