@@ -514,14 +514,36 @@ class DatabaseGenerator():
 
         return df
     
-    def update_failed_jobs_in_database(self, df_path = None, read_error_dirs=False, read_multiple_runs_in_dir=False, max_dir_count=None, df_compression=True):
+    def update_failed_jobs_in_database(self, df_path=None, read_error_dirs=False, read_multiple_runs_in_dir=False, max_dir_count=None, df_compression=True):
         compression_option = 'gzip' if df_compression else None
         compression_extension = '.gz' if df_compression else ''
         
         if df_path is None:
             df_path = os.path.join(self.parent_dir, f"vasp_database.pkl{compression_extension}")
         
-        df = pd.read_pickle(df_path, compression=compression_option)
+        if os.path.isdir(df_path):
+            potential_files = [
+                os.path.join(df_path, "vasp_database.pkl.gz"),
+                os.path.join(df_path, "vasp_database.pkl")
+            ]
+        else:
+            potential_files = [df_path]
+        
+        df = None
+        for file in potential_files:
+            try:
+                if file.endswith(".gz"):
+                    df = pd.read_pickle(file, compression='gzip')
+                else:
+                    df = pd.read_pickle(file, compression=None)
+                print(f"Successfully read database from {file}")
+                break
+            except (FileNotFoundError, pd.errors.UnrecognizedCompressionError):
+                print(f"Failed to read database from {file}")
+
+        if df is None:
+            raise ValueError("Invalid path or filename - please check! Attempted paths: " + ", ".join(potential_files))
+        
         failed_dirs = df[df['convergence'] == False]['filepath'].tolist()
         print(f"Reparsing {len(failed_dirs)} directories where convergence is False")
 
