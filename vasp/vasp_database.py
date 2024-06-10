@@ -230,8 +230,8 @@ def get_structure(directory):
         try:
             return Structure.from_file(os.path.join(directory, filename))
         except Exception as e:
-            print(f"Failed to parse structure file {filename}: {e}")
-
+            #print(f"Failed to parse structure file {filename}: {e}")
+            pass
     print("Failed to parse appropriate structure file completely")
     return np.nan
 

@@ -23,7 +23,7 @@ def get_slurm_jobs_working_directories(username="hmai"):
 
 class CalculationConverger():
     
-    def __init__(self, parent_dir, script_template_dir, max_submissions = 1000, submission_command = "sbatch", username="hmai"):
+    def __init__(self, parent_dir, script_template_dir, max_submissions=1000, submission_command="sbatch", username="hmai"):
         self.parent_dir = parent_dir
         self.max_submissions = max_submissions
         self.submission_command = submission_command
@@ -34,334 +34,127 @@ class CalculationConverger():
     def submit_to_queue(self, dirpath, script_name):
         os.system(f"cd {dirpath} && {self.submission_command} {script_name}")
         
-    def reconverge_all(self,
-                    calc_type = "DRS",
-                    HPC = "Setonix",
-                    VASP_version = "5.4.4",
-                    CPU = 128,
-                    walltime = 24,
-                    cpu_per_node=128,
-                    from_dataframe_path=None):  # New parameter
-        # Read from DataFrame if the path is provided
-        if from_dataframe_path:
-            df = pd.read_pickle(from_dataframe_path)
-            non_converged = df['filepath'].tolist()
-            non_converged = [path[:-len(os.sep + "OUTCAR")] if path.endswith(os.sep + "OUTCAR") else path for path in non_converged]
-        else:
-            non_converged = self.reconverge_from_log_file()
-        
-        # This is necessary to avoid reconverges from the log file which aren't in specified dir
-        # This occurs when there are multiple calculation runs in the queue (that are not from this dir)
-        non_converged = [item for item in non_converged if self.parent_dir in item]
+    def reconverge_all(self, calc_type="DRS", HPC="Setonix", VASP_version="5.4.4", CPU=128, walltime=24, cpu_per_node=128, from_dataframe_path=None):
+        non_converged = self.load_non_converged_paths(from_dataframe_path)
         running_jobs_df = get_slurm_jobs_working_directories(self.user)
         running_queued_job_directories = running_jobs_df["Working Directory"].to_list()
 
-        dirs_to_search_next_time = []
-        leftover_calcs_exceeding_queue_limit = []
-        # Exclude the running job directories from dirs_to_search
-        dirs_to_apply_reconverge = set(non_converged) if non_converged else set(self.vasp_dirs)
-        dirs_to_apply_reconverge -= set(running_queued_job_directories)
-        dirs_to_apply_reconverge = list(set(dirs_to_apply_reconverge))
+        dirs_to_search_next_time, leftover_calcs_exceeding_queue_limit = [], []
+
+        dirs_to_apply_reconverge = set(non_converged or self.vasp_dirs) - set(running_queued_job_directories)
 
         for i, dir in enumerate(dirs_to_apply_reconverge):
-            converged = check_convergence(dir)
-            if not converged:
-                print(f"UNCONVERGED: {dir}")
-                non_converged.append(dir)
+            if not check_convergence(dir):
                 if i + len(running_queued_job_directories) > self.max_submissions:
                     leftover_calcs_exceeding_queue_limit.append(dir)
                 else:
-                    self.reconverge(dir,
-                                    calc_type=calc_type,
-                                    HPC=HPC,
-                                    VASP_version=VASP_version,
-                                    CPU=CPU,
-                                    walltime=walltime,
-                                    cpu_per_node=cpu_per_node)
+                    self.reconverge(dir, calc_type, HPC, VASP_version, CPU, walltime, cpu_per_node)
                     dirs_to_search_next_time.append(dir)
             else:
                 print(f"CONVERGED: {dir}")
 
-        dirs_to_search_next_time += running_queued_job_directories
-        dirs_to_search_next_time += leftover_calcs_exceeding_queue_limit
+        self.update_resubmit_log(dirs_to_search_next_time + running_queued_job_directories + leftover_calcs_exceeding_queue_limit)
+        return dirs_to_search_next_time
 
-        os.chdir(self.parent_dir)
-
+    def load_non_converged_paths(self, from_dataframe_path):
+        if from_dataframe_path:
+            df = pd.read_pickle(from_dataframe_path)
+            return [path.rstrip(os.sep + "OUTCAR") if path.endswith(os.sep + "OUTCAR") else path for path in df['filepath'].tolist()]
+        return self.reconverge_from_log_file()
+    
+    def update_resubmit_log(self, dirs_to_search_next_time):
         with open(os.path.join(self.parent_dir, "resubmit.log"), "w") as log_file:
             for dir_path in dirs_to_search_next_time:
                 log_file.write(dir_path + "\n")
 
-        return dirs_to_search_next_time
-
-    def reconverge(self,
-                    dirpath,
-                    calc_type="SDRS",
-                    HPC = "Setonix",
-                    VASP_version = "5.4.4",
-                    CPU = 128,
-                    walltime = 24,
-                    cpu_per_node=128):
-
-        # Check if there are any error* and *tar* files in the directory
+    def reconverge(self, dirpath, calc_type="SDRS", HPC="Setonix", VASP_version="5.4.4", CPU=128, walltime=24, cpu_per_node=128):
+        self.handle_error_run_files(dirpath)
+        reconverge_methods = {
+            "static": self.reconverge_static,
+            "SDRS": self.reconverge_SDRS,
+            "DRS": self.reconverge_DRS,
+            "base": self.reconverge_base
+        }
+        reconverge_method = reconverge_methods.get(calc_type, self.reconverge_base)
+        reconverge_method(dirpath, HPC, VASP_version, CPU, walltime, cpu_per_node)
+    
+    def handle_error_run_files(self, dirpath):
         error_tar_files_exist = any("error" in f and "tar" in f for f in os.listdir(dirpath))
-
-        # Create error_run_n folder if error* and *tar* files exist
         if error_tar_files_exist:
-            # Create error_run_n folder
             latest_error_run_index = self.find_latest_error_run_index(dirpath)
-            #print(latest_error_run_index)
-            error_run_folder_name = f"error_run_{latest_error_run_index + 1}"
-            error_run_folder_path = os.path.join(dirpath, error_run_folder_name)
+            error_run_folder_path = os.path.join(dirpath, f"error_run_{latest_error_run_index + 1}")
             os.makedirs(error_run_folder_path)
-            # Move files containing "error" and "tar" into the error_run_n folder
-            for f in os.listdir(dirpath):
-                if "error" in f and "tar" in f:
-                    shutil.move(os.path.join(dirpath, f), os.path.join(error_run_folder_path, f))
-                if f.endswith(".sh"):
-                    shutil.move(os.path.join(dirpath, f), os.path.join(error_run_folder_path, f))
-                    
-            orig_files_to_preserve = ["INCAR.orig", "POSCAR.orig", "KPOINTS.orig", "custodian.json"]
-            for og_file in orig_files_to_preserve:
-                if os.path.exists(os.path.join(dirpath, og_file)):
-                    shutil.move(os.path.join(dirpath, og_file), os.path.join(error_run_folder_path, og_file))
-        if calc_type=="static":
-            self.reconverge_static(dirpath,
-                    HPC = HPC,
-                    VASP_version = VASP_version,
-                    CPU = CPU,
-                    walltime = walltime,
-                    cpu_per_node=cpu_per_node)
-        if calc_type=="SDRS":
-            self.reconverge_SDRS(dirpath,
-                                HPC = HPC,
-                                VASP_version = VASP_version,
-                                CPU = CPU,
-                                walltime = walltime,
-                                cpu_per_node=cpu_per_node)
-        elif calc_type=="DRS":
-            self.reconverge_DRS(dirpath,
-                                HPC = HPC,
-                                VASP_version = VASP_version,
-                                CPU = CPU,
-                                walltime = walltime,
-                                cpu_per_node=cpu_per_node)
-        elif calc_type=="base":
-            self.reconverge_base(dirpath,
-                    HPC = HPC,
-                    VASP_version = VASP_version,
-                    CPU = CPU,
-                    walltime = walltime,
-                    cpu_per_node=cpu_per_node)
-            
-    # Function to find the latest error_run folder index
+            self.move_files_to_error_run_folder(dirpath, error_run_folder_path)
+
+    def move_files_to_error_run_folder(self, dirpath, error_run_folder_path):
+        for f in os.listdir(dirpath):
+            if "error" in f and "tar" in f or f.endswith(".sh"):
+                shutil.move(os.path.join(dirpath, f), os.path.join(error_run_folder_path, f))
+        for og_file in ["INCAR.orig", "POSCAR.orig", "KPOINTS.orig", "custodian.json"]:
+            if os.path.exists(os.path.join(dirpath, og_file)):
+                shutil.move(os.path.join(dirpath, og_file), os.path.join(error_run_folder_path, og_file))
+        for current_run in ["INCAR", "POSCAR", "POTCAR", "OUTCAR", "vasprun.xml", "vasp.log"]:
+            shutil.move(os.path.join(dirpath, current_run), os.path.join(error_run_folder_path, current_run))
+                
     def find_latest_error_run_index(self, dirpath):
         error_run_indices = [0]
         for f in os.listdir(dirpath):
             if f.startswith("error_run_"):
-                # print(f"error_run_ folder {f} found")
                 try:
-                    n = int(f.split(sep="error_run_")[-1])
+                    n = int(f.split("error_run_")[-1])
                     error_run_indices.append(n)
                 except ValueError as e:
                     print(f"Exception occurred at {dirpath}: {e}")
-        return max(error_run_indices)    
+        return max(error_run_indices)
     
-    def reconverge_base(self,
-                       dirpath,
-                       HPC = "Setonix",
-                       VASP_version = "5.4.4",
-                       CPU = 128,
-                       walltime = 24,
-                       cpu_per_node=128
-                       ):
+    def generate_custodian_string(self, template_filename, user_inputs):
+        template_path = os.path.join(self.script_template_dir, template_filename)
+        return jobfile._replace_fields(template_path, user_inputs)
 
-        # User inputs for the SDRS template
+    def reconverge_base(self, dirpath, HPC, VASP_version, CPU, walltime, cpu_per_node):
+        self.reconverge_generic(dirpath, "template_BASE.py", HPC, VASP_version, CPU, walltime, cpu_per_node)
+
+    def reconverge_static(self, dirpath, HPC, VASP_version, CPU, walltime, cpu_per_node):
+        self.reconverge_generic(dirpath, "template_Static.py", HPC, VASP_version, CPU, walltime, cpu_per_node)
+
+    def reconverge_DRS(self, dirpath, HPC, VASP_version, CPU, walltime, cpu_per_node):
+        stages_left = self.get_stages_left(dirpath, ["relax_1", "relax_2"], 3)
+        self.reconverge_generic(dirpath, "template_DRS.py", HPC, VASP_version, CPU, walltime, cpu_per_node, {"{STAGES_LEFT}": str(stages_left)})
+
+    def reconverge_SDRS(self, dirpath, HPC, VASP_version, CPU, walltime, cpu_per_node):
+        stages_left = self.get_stages_left(dirpath, ["static_1", "relax_1", "relax_2"], 4)
+        self.reconverge_generic(dirpath, "template_SDRS.py", HPC, VASP_version, CPU, walltime, cpu_per_node, {"{STAGES_LEFT}": str(stages_left)})
+
+    def get_stages_left(self, dirpath, stage_markers, default_stages_left):
+        for i, marker in enumerate(reversed(stage_markers)):
+            if any(f.endswith(f".{marker}") for f in os.listdir(dirpath)):
+                return i + 1
+        return default_stages_left
+
+    def reconverge_generic(self, dirpath, template_filename, HPC, VASP_version, CPU, walltime, cpu_per_node, extra_inputs=None):
         user_inputs = {
             '{VASPOUTPUTFILENAME}': '"vasp.log"',
             '{MAXCUSTODIANERRORS}': "20"
         }
+        if extra_inputs:
+            user_inputs.update(extra_inputs)
 
-        # Generate a string representation from template_Static.py
-        template_path_static = os.path.join(self.script_template_dir,"template_BASE.py")
-        custodian_string = jobfile._replace_fields(template_path_static, user_inputs)
-        script_name = os.path.join(self.script_template_dir, f"BASE_Custodian_{HPC}.sh")
-        
-        job = jobfile(file_path = script_name,
-                    HPC = HPC,
-                    VASP_version = VASP_version,
-                    CPU = CPU,
-                    walltime = walltime,
-                    cpu_per_node=cpu_per_node,
-                    generic_insert_field=["{CUSTODIANSTRING}"],
-                    generic_insert=[custodian_string])
-        
+        custodian_string = self.generate_custodian_string(template_filename, user_inputs)
+        script_name = os.path.join(self.script_template_dir, f"{template_filename.split('_')[0]}_Custodian_{HPC}.sh")
+        job = jobfile(file_path=script_name, HPC=HPC, VASP_version=VASP_version, CPU=CPU, walltime=walltime, cpu_per_node=cpu_per_node, generic_insert_field=["{CUSTODIANSTRING}"], generic_insert=[custodian_string])
         target_script_name = f"{os.path.basename(dirpath)}.sh"
-        job.to_file(job_name=target_script_name,
-                    output_path=dirpath)
-        
-        # print(job.to_string())
-        # Submit to the queue using the error_run_n folder
-        self.submit_to_queue(dirpath, target_script_name)        
-        
-    def reconverge_static(self,
-                       dirpath,
-                       HPC = "Setonix",
-                       VASP_version = "5.4.4",
-                       CPU = 128,
-                       walltime = 24,
-                       cpu_per_node=128
-                       ):
-
-        # User inputs for the SDRS template
-        user_inputs = {
-            '{VASPOUTPUTFILENAME}': '"vasp.log"',
-            '{MAXCUSTODIANERRORS}': "20"
-        }
-
-        # Generate a string representation from template_Static.py
-        template_path_static = os.path.join(self.script_template_dir,"template_Static.py")
-        custodian_string = jobfile._replace_fields(template_path_static, user_inputs)
-        script_name = os.path.join(self.script_template_dir, f"Static_Custodian_{HPC}.sh")
-        
-        job = jobfile(file_path = script_name,
-                    HPC = HPC,
-                    VASP_version = VASP_version,
-                    CPU = CPU,
-                    walltime = walltime,
-                    cpu_per_node=cpu_per_node,
-                    generic_insert_field=["{CUSTODIANSTRING}"],
-                    generic_insert=[custodian_string])
-        
-        target_script_name = f"{os.path.basename(dirpath)}.sh"
-        job.to_file(job_name=target_script_name,
-                    output_path=dirpath)
-        
-        # print(job.to_string())
-        # Submit to the queue using the error_run_n folder
-        self.submit_to_queue(dirpath, target_script_name)    
-        
-    def reconverge_DRS(self,
-                       dirpath,
-                       HPC = "Setonix",
-                       VASP_version = "5.4.4",
-                       CPU = 128,
-                       walltime = 24,
-                       cpu_per_node=128
-                       ):
-        
-        relax1_files_exist = any(f.endswith(".relax_1") for f in os.listdir(dirpath))
-        relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
-
-        if relax2_files_exist:
-            stages_left = 1
-        elif relax1_files_exist:
-            stages_left = 2
-        else:
-            stages_left = 3
-
-        # User inputs for the SDRS template
-        user_inputs = {
-            '{VASPOUTPUTFILENAME}': '"vasp.log"',
-            '{MAXCUSTODIANERRORS}': "15",
-            '{STAGES_LEFT}': f'{stages_left}',
-        }
-
-        # Generate a string representation from template_Static.py
-        template_path = os.path.join(self.script_template_dir,"template_DRS.py")
-        custodian_string = jobfile._replace_fields(template_path, user_inputs)
-        
-        script_name = os.path.join(self.script_template_dir, f"DRS_Custodian_{HPC}.sh")
-        target_script_name = f"{os.path.basename(dirpath)}.sh"
-        
-        job = jobfile(file_path = script_name,
-                    HPC = HPC,
-                    VASP_version = VASP_version,
-                    CPU = CPU,
-                    walltime = walltime,
-                    cpu_per_node = cpu_per_node,
-                    generic_insert_field = ["{CUSTODIANSTRING}"],
-                    generic_insert = [custodian_string])
-        
-        job.to_file(job_name = target_script_name,
-                    output_path = dirpath)
-        
-        # Submit to the queue using the error_run_n folder
+        job.to_file(job_name=target_script_name, output_path=dirpath)
         self.submit_to_queue(dirpath, target_script_name)
-        
-    def reconverge_SDRS(self,
-                        dirpath,
-                        HPC = "Setonix",
-                        VASP_version = "5.4.4",
-                        CPU = 128,
-                        walltime = 24,
-                        cpu_per_node=128
-                        ):
-        static1_files_exist = any(f.endswith(".static_1") for f in os.listdir(dirpath))
-        # print(static1_files_exist)
-        relax1_files_exist = any(f.endswith(".relax_1") for f in os.listdir(dirpath))
-        # print(relax1_files_exist)
-        relax2_files_exist = any(f.endswith(".relax_2") for f in os.listdir(dirpath))
-        # print(relax2_files_exist)
 
-        # Check if .relax_1 and .relax2 files exist and use the static relaxation script
-        if relax2_files_exist:
-            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_3_{HPC}.sh")
-            stages_left = 1
-            # print("Resuming after relax_2")
-        if relax1_files_exist:
-            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_2_{HPC}.sh")
-            stages_left = 2
-            # print("Resuming after relax_1")
-        elif static1_files_exist:
-            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_1_{HPC}.sh")
-            stages_left = 3
-            # print("Resuming after static_1")
-        else:
-            script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
-            stages_left = 4
-            # print("Starting from scratch (no viable checkpoint found)")        
-
-        # User inputs for the SDRS template
-        user_inputs = {
-            '{VASPOUTPUTFILENAME}': '"vasp.log"',
-            '{MAXCUSTODIANERRORS}': "15",
-            '{STAGES_LEFT}': f'{stages_left}',
-        }
-
-        # Generate a string representation from template_Static.py
-        template_path = os.path.join(self.script_template_dir,"template_SDRS.py")
-        custodian_string = jobfile._replace_fields(template_path, user_inputs)
-        
-        script_name = os.path.join(self.script_template_dir, f"SDRS_Custodian_{HPC}.sh")
-        target_script_name = f"{os.path.basename(dirpath)}.sh"
-        
-        job = jobfile(file_path = script_name,
-                    HPC = HPC,
-                    VASP_version = VASP_version,
-                    CPU = CPU,
-                    walltime = walltime,
-                    cpu_per_node = cpu_per_node,
-                    generic_insert_field = ["{CUSTODIANSTRING}"],
-                    generic_insert = [custodian_string])
-        
-        job.to_file(job_name = target_script_name,
-                    output_path = dirpath)
-        
-        # Submit to the queue using the error_run_n folder
-        self.submit_to_queue(dirpath, target_script_name)
-                 
     def reconverge_from_log_file(self):
-        resubmit_log_file = os.path.join(self.parent_dir, "resubmit.log")        
+        resubmit_log_file = os.path.join(self.parent_dir, "resubmit.log")
         if os.path.isfile(resubmit_log_file):
-            # Submit jobs from the resubmit_log_file
             with open(resubmit_log_file, "r") as log_file:
                 non_converged_dirs = [line.strip() for line in log_file.readlines()]
-            
+
             largest_n = get_latest_file_iteration(self.parent_dir, "resubmit.log_")
-            # Rename the existing resubmit.log to resubmit.log_n
-            new_log_filename = f"resubmit.log_{largest_n + 1}"
-            os.rename(resubmit_log_file, os.path.join(self.parent_dir, new_log_filename))
-            
+            os.rename(resubmit_log_file, os.path.join(self.parent_dir, f"resubmit.log_{largest_n + 1}"))
+
             return non_converged_dirs
         else:
             print("No resubmit log file found. Nothing to resubmit from old logs.")
