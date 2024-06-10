@@ -572,15 +572,8 @@ class DatabaseGenerator():
                                               extract_error_dirs=read_error_dirs, 
                                               parse_all_in_dir=read_multiple_runs_in_dir))
 
-        # Ensure no duplicate labels in index before update
-        if failed_df.index.duplicated().any():
-            failed_df = failed_df[~failed_df.index.duplicated()]
-
-        if df.index.duplicated().any():
-            df = df[~df.index.duplicated()]
-
         # Use a different method to merge the DataFrames
-        df.update(failed_df, overwrite=True, filter_func=lambda x: not pd.isna(x))
+        df.update(failed_df, overwrite=True)
 
         df.to_pickle(output_path, compression=compression_option)
         print(f"Updated dataframe saved to {output_path}")
