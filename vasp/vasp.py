@@ -514,22 +514,40 @@ class DatabaseGenerator():
 
         return df
     
-    def update_failed_jobs_in_database(self, df_path = None, read_error_dirs=False, read_multiple_runs_in_dir=False, df_compression=True):
+    def update_failed_jobs_in_database(self, df_path = None, read_error_dirs=False, read_multiple_runs_in_dir=False, max_dir_count=None, df_compression=True):
         compression_option = 'gzip' if df_compression else None
         compression_extension = '.gz' if df_compression else ''
-        if df_path == None:
+        
+        if df_path is None:
             df_path = os.path.join(self.parent_dir, f"vasp_database.pkl{compression_extension}")
-            df = pd.read_pickle(df_path, compression=compression_option)
-        else:
-            df = pd.read_pickle(df_path, compression=compression_option)
+        
+        df = pd.read_pickle(df_path, compression=compression_option)
         failed_dirs = df[df['convergence'] == False]['filepath'].tolist()
         print(f"Reparsing {len(failed_dirs)} directories where convergence is False")
+
+        if max_dir_count:
+            pkl_filenames = []
+            for i, chunks in enumerate(gen_tools.chunk_list(failed_dirs, max_dir_count)):
+                step_time = time.time()
+                failed_df = pd.concat(parallelise(parse_vasp_directory, 
+                                                  [(chunk,) for chunk in chunks],
+                                                  max_workers=self.max_workers,
+                                                  extract_error_dirs=read_error_dirs, 
+                                                  parse_all_in_dir=read_multiple_runs_in_dir))
+                db_filename = f"update_{i}.pkl{compression_extension}"
+                pkl_filenames.append(os.path.join(self.parent_dir, db_filename))
+                failed_df.to_pickle(os.path.join(self.parent_dir, db_filename), compression=compression_option)
+                step_taken_time = np.round(time.time() - step_time, 3)
+                print(f"Step {i}: {step_taken_time} seconds taken for {len(chunks)} parse steps")
+            
+            failed_df = pd.concat([pd.read_pickle(partial_df, compression=compression_option) for partial_df in pkl_filenames])
+        else:
+            failed_df = pd.concat(parallelise(parse_vasp_directory, 
+                                              [(chunk,) for chunk in failed_dirs],
+                                              max_workers=self.max_workers,
+                                              extract_error_dirs=read_error_dirs, 
+                                              parse_all_in_dir=read_multiple_runs_in_dir))
         
-        failed_df = pd.concat(parallelise(parse_vasp_directory, 
-                                          [(chunk,) for chunk in failed_dirs],
-                                          max_workers=self.max_workers,
-                                          extract_error_dirs=read_error_dirs, 
-                                          parse_all_in_dir=read_multiple_runs_in_dir))
         df.update(failed_df)
         df.to_pickle(df_path, compression=compression_option)
         print(f"Updated dataframe saved to {df_path}")
