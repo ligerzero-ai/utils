@@ -88,13 +88,16 @@ class CalculationConverger():
 
     def move_files_to_error_run_folder(self, dirpath, error_run_folder_path):
         for f in os.listdir(dirpath):
-            if "error" in f and "tar" in f or f.endswith(".sh"):
+            if ("error" in f and "tar" in f) or f.endswith(".sh"):
                 shutil.move(os.path.join(dirpath, f), os.path.join(error_run_folder_path, f))
+
         for og_file in ["INCAR.orig", "POSCAR.orig", "KPOINTS.orig", "custodian.json"]:
             if os.path.exists(os.path.join(dirpath, og_file)):
                 shutil.move(os.path.join(dirpath, og_file), os.path.join(error_run_folder_path, og_file))
+                
         for current_run in ["INCAR", "POSCAR", "POTCAR", "OUTCAR", "vasprun.xml", "vasp.log"]:
-            shutil.move(os.path.join(dirpath, current_run), os.path.join(error_run_folder_path, current_run))
+            if os.path.exists(os.path.join(dirpath, current_run)):
+                shutil.copy(os.path.join(dirpath, current_run), os.path.join(error_run_folder_path, current_run))
                 
     def find_latest_error_run_index(self, dirpath):
         error_run_indices = [0]
