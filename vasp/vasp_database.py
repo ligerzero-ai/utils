@@ -55,10 +55,15 @@ def process_error_archives(directory):
     df_list = []
     for error_file in error_files:
         with tempfile.TemporaryDirectory() as temp_dir:
-            with tarfile.open(error_file, "r:*") as tar:
-                tar.extractall(path=temp_dir)
-            df_list.append(pd.DataFrame(_get_vasp_outputs(temp_dir)))
-    
+            try:
+                with tarfile.open(error_file, "r:*") as tar:
+                    tar.extractall(path=temp_dir)
+                df_list.append(pd.DataFrame(_get_vasp_outputs(temp_dir)))
+            except tarfile.ReadError as e:
+                print(f"Error extracting {error_file}: {e}")
+            except Exception as e:
+                print(f"Unexpected error processing {error_file}: {e}")
+
     print(f"Processing error dirs in {directory} complete.")
     return pd.concat(df_list) if df_list else pd.DataFrame()
 
