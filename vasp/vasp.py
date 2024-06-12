@@ -393,7 +393,7 @@ def exclude_non_converged_data(df, columns_to_exclude_data):
     return processed_df
 
 def get_flattened_df(df,
-                     groupby = "filepath",
+                     groupby="filepath",
                      columns_to_process=["energy", "energy_zero", "structures", "forces", "magmoms", "stresses", "scf_steps", "scf_convergence"]):
     processed_df = df.sort_values("calc_start_time").groupby(groupby).agg(lambda x: x.tolist()).reset_index().copy()
     for column in columns_to_process:
@@ -405,14 +405,14 @@ def get_filtered_df(df,
                     columns=["energy", "energy_zero", "structures", "forces", "magmoms", "stresses", "scf_steps", "scf_convergence"]):
     def process_row(row, column="energy", columns_to_flatten=columns):
         indices = find_significantly_different_indices_threshold(row[column], energy_threshold)
-        processed_row = {col: (row[col] if col not in columns_to_flatten else [row[col][i] for i in indices]) for col in df.columns}
+        processed_row = {col: (row[col] if col not in columns_to_flatten else [row[col][i] for i in indices if i < len(row[col])]) for col in df.columns}
         return processed_row
     significant_changes = df.apply(process_row, axis=1)
     significant_changes_df = pd.DataFrame(list(significant_changes))
 
     if 'job_name' in significant_changes_df.columns:
         significant_changes_df["job_name"] = [row.job_name[0] for _, row in significant_changes_df.iterrows()]
-        
+
     return significant_changes_df
 
 def get_potential_data_df(df,
