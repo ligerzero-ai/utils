@@ -1,4 +1,4 @@
-from vasp.database import DatabaseGenerator
+from utils.vasp.vasp import DatabaseGenerator
 import argparse
 import warnings
 from multiprocessing import cpu_count
