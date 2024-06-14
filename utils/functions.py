@@ -7,7 +7,7 @@ from pymatgen.io.vasp.inputs import Potcar, Incar, Kpoints
 
 from utils.jobfile import jobfile
 potcar_library_path = "/root/POTCAR_Library/GGA"
-potcar_library_path = "/u/hmai/pyiron-resources-cmmc/vasp/potentials/potpaw_PBE"
+#potcar_library_path = "/u/hmai/pyiron-resources-cmmc/vasp/potentials/potpaw_PBE"
 
 sites_to_study = {"S11-RA110-S3-32": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
                   "S3-RA110-S1-11": [20, 22, 24, 26, 28, 30, 32, 34, 36],

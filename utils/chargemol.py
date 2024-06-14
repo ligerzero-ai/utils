@@ -213,6 +213,9 @@ class ChargemolAnalysis():
 
     def get_min_ANSBO(self, axis=2, tolerance=0.1):
         return min(get_ANSBO_all_cleavage_planes(self.struct, self.bond_matrix, axis=axis, tolerance=tolerance))
+    
+    def analyse_ANSBO(self, axis=2, tolerance=0.1):
+        return analyse_ANSBO(self.directory, axis=axis, tolerance=tolerance)
 
 def analyse_ANSBO(directory, axis=2, tolerance=0.1):
     """
@@ -512,7 +515,7 @@ def get_ANSBO_all_cleavage_planes(structure, bond_matrix, axis = 2, tolerance = 
     ANSBO_profile = []
     for cp in cp_list:
         ANSBO_profile.append(get_ANSBO(structure, bond_matrix, cp))
-    return ANSBO_profile
+    return cp_list, ANSBO_profile
 
 def plot_ANSBO_profile(structure,
                        bond_matrix,
