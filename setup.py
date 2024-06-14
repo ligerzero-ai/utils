@@ -1,17 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='your_project',
     version='0.1',
-    packages=[
-        'vasp',
-        'plotters',
-        'actual_usage',
-        'WIP_notebooks',
-        'GNN_calculators',
-        'jobscript_templates',
-        'StructureManipulator'
-    ],
+    packages=find_packages(),
     install_requires=[
         'pandas',
         'numpy',
