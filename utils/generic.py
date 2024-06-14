@@ -224,7 +224,7 @@ def extract_tarball(archive_filepath, extraction_path):
     except Exception as e:
         print(f"Error extracting archive: {e}")
 
-def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz"), max_workers=None):
+def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz",), max_workers=None):
     """
     Finds tarball files with specified extensions in a directory and extracts them in parallel.
 
@@ -247,7 +247,12 @@ def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz"), max_w
     """
     filepaths = find_exts(top=parent_dir, exts=extensions)
     extraction_filepaths = [os.path.dirname(filepath) for filepath in filepaths]
-    parallelise(extract_tarball, filepaths, extraction_filepaths, max_workers=max_workers)
+
+    # Prepare args_list as a list of tuples
+    args_list = [(filepath, extraction_path) for filepath, extraction_path in zip(filepaths, extraction_filepaths)]
+
+    # Call parallelise function
+    parallelise(extract_tarball, args_list, max_workers=max_workers)
 
 def extract_files_from_tarball(tarball_filepath, filenames, suffix=None, prefix=None):
     """
@@ -336,10 +341,10 @@ def extract_files_from_tarballs_parallel(tarball_paths, filenames, suffix=False,
         - Finally, it parallelizes the extraction process by calling the `parallelise()` function with the `extract_files_from_tarball` function,
           the lists of tarball_paths, filenames, and suffixes as arguments.
     """
-    if isinstance(filenames, list):
+    if isinstance(filenames, str):
+        filenames = [filenames] * len(tarball_paths)
+    elif isinstance(filenames, list):
         if isinstance(filenames[0], str):
-            filenames = [filenames] * len(tarball_paths)
-        elif isinstance(filenames[0], list):
             if len(filenames) != len(tarball_paths):
                 raise ValueError("The length of filenames should match the number of tarball_paths.")
         else:
@@ -350,12 +355,16 @@ def extract_files_from_tarballs_parallel(tarball_paths, filenames, suffix=False,
     if suffix:
         suffixes = [os.path.basename(filepath).split(".tar")[0] for filepath in tarball_paths]
     else:
-        suffixes = None
+        suffixes = [None for _ in tarball_paths]
 
-    parallelise(extract_files_from_tarball, tarball_paths, filenames, max_workers=max_workers, suffix=suffixes)
+    # Prepare args_list as a list of tuples
+    args_list = [(tarball_path, filename, suffix) for tarball_path, filename, suffix in zip(tarball_paths, filenames, suffixes)]
+
+    # Call parallelise function
+    parallelise(extract_files_from_tarball, args_list, max_workers=max_workers)
 
 def find_and_extract_files_from_tarballs_parallel(parent_dir,
-                                                  extension=(".tar.gz"),
+                                                  extension=(".tar.gz",),
                                                   filenames=[],
                                                   suffix=False,
                                                   prefix=False,
@@ -366,13 +375,14 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
 
     Parameters:
         parent_dir (str): The path of the parent directory to search for tarball files.
-        extension (str, optional): The file extension of the tarball files to search for. Defaults to ".tar.gz".
+        extension (str or tuple, optional): The file extension(s) of the tarball files to search for. Defaults to ".tar.gz".
         filenames (str or list, optional): The filenames to extract from the tarball(s). If a string, it will be used for all tarball files.
                                            If a list, it should have the same length as the number of tarball files found in the parent directory.
                                            Defaults to an empty list, which means all files will be extracted.
         suffix (bool, optional): Determines whether to append suffixes to the extracted filenames. Defaults to False.
         prefix (bool, optional): Determines whether to prepend prefixes to the extracted filenames. Defaults to False.
         exclude_containing (list, optional): A list of strings. Tarballs whose names contain any of these strings will be excluded from extraction.
+        max_workers (int, optional): The maximum number of workers to use for parallel processing. Defaults to the number of CPUs.
 
     Usage:
         # Extract all files from .tar.gz files within a parent directory in parallel
@@ -397,17 +407,28 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
     filepaths = [filepath for filepath in filepaths if not any(exclude in os.path.basename(filepath) for exclude in exclude_containing)]
 
     if suffix:
-        # Really ugly so this only works with .tar.gz files for now
         suffixes = [os.path.basename(filepath).split(".tar")[0] for filepath in filepaths]
     else:
         suffixes = [None for _ in filepaths]
         
     if prefix:
-        # Really ugly so this only works with .tar.gz files for now
         prefixes = [os.path.basename(filepath).split(".tar")[0] for filepath in filepaths]
     else:
-        prefixes = [None for _ in filepaths]        
-    parallelise(extract_files_from_tarball, filepaths, filenames,max_workers=max_workers, suffix=suffixes, prefix=prefixes)
+        prefixes = [None for _ in filepaths]
+
+    if isinstance(filenames, str):
+        filenames = [filenames] * len(filepaths)
+    elif isinstance(filenames, list):
+        if len(filenames) != len(filepaths):
+            raise ValueError("The length of filenames should match the number of tarball files found.")
+    else:
+        raise ValueError("Invalid format for filenames.")
+
+    # Prepare args_list as a list of tuples
+    args_list = [(filepath, filename) for filepath, filename in zip(filepaths, filenames)]
+
+    # Call parallelise function
+    parallelise(extract_files_from_tarball, args_list, max_workers=max_workers, suffix=suffixes, prefix=prefixes)
 
 def compress_directory(directory_path,
                        exclude_files = [],

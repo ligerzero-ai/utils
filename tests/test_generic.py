@@ -358,6 +358,7 @@ class TestExtractFilesFromTarballsParallel(unittest.TestCase):
         self.create_test_tarballs()
         self.tarball_paths = [os.path.join(self.temp_dir, "dir1", "test1.tar.gz"),
                               os.path.join(self.temp_dir, "dir2", "test2.tar.gz")]
+
     def tearDown(self):
         for root, dirs, files in os.walk(self.temp_dir, topdown=False):
             for file in files:
@@ -390,12 +391,12 @@ class TestExtractFilesFromTarballsParallel(unittest.TestCase):
 
     def test_extract_files_from_tarballs_parallel(self):
         filenames = [
-            ["file1.txt"],  # Extract single file from first tarball
-            ["file2.txt"],  # Extract single file from second tarball
+            "file1.txt",  # Extract single file from first tarball
+            "file2.txt",  # Extract single file from second tarball
         ]
         suffix = False
 
-        extract_files_from_tarballs_parallel(self.tarball_paths, filenames, suffix)
+        extract_files_from_tarballs_parallel(self.tarball_paths, filenames, suffix=suffix)
 
         extracted_file_path1 = os.path.join(self.temp_dir, "dir1", "file1.txt")
         self.assertTrue(os.path.exists(extracted_file_path1))
@@ -404,23 +405,27 @@ class TestExtractFilesFromTarballsParallel(unittest.TestCase):
         self.assertTrue(os.path.exists(extracted_file_path2))
 
     def test_extract_files_with_leading_dot(self):
-
-        filenames = ["./file1.txt", "./file2.txt"]
+        filenames = [
+            "./file1.txt",
+            "./file2.txt",
+        ]
 
         extract_files_from_tarballs_parallel(self.tarball_paths, filenames)
 
         for i, filename in enumerate(filenames):
-            extracted_filepath = os.path.join(os.path.dirname(self.tarball_paths[i]), filename[:2])
+            extracted_filepath = os.path.join(os.path.dirname(self.tarball_paths[i]), filename[2:])
             self.assertTrue(os.path.exists(extracted_filepath))
 
     def test_extract_files_no_suffix(self):
-        filenames = ["file1.txt", "file2.txt"]
+        filenames = [
+            "file1.txt",
+            "file2.txt",
+        ]
 
         extract_files_from_tarballs_parallel(self.tarball_paths, filenames)
 
         for i, filename in enumerate(filenames):
             extracted_filepath = os.path.join(os.path.dirname(self.tarball_paths[i]), filename)
-            # print(f"the expected extraction path for this file {filename} is {extracted_filepath}")
             self.assertTrue(os.path.exists(extracted_filepath))
 
 class TestFindAndExtractFilesFromTarballsParallel(unittest.TestCase):
