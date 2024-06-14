@@ -11,7 +11,7 @@ import pandas as pd
 import utils.generic as gen_tools
 from utils.parallel import parallelise
 from utils.vasp.parser.outcar import Outcar
-from vasp.parser.output import parse_vasp_directory
+from utils.vasp.parser.output import parse_vasp_directory
 
 def find_vasp_directories(parent_dir,
                           filenames=["vasp.log", "INCAR", "POTCAR", "CONTCAR", "KPOINTS", "OUTCAR", "vasprun.xml"],

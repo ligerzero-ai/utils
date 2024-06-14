@@ -1,4 +1,4 @@
-from utils.vasp.vasp import DatabaseGenerator
+from utils.vasp.database import DatabaseGenerator
 import argparse
 import warnings
 from multiprocessing import cpu_count
@@ -33,7 +33,7 @@ def main():
                                 cleanup=False,
                                 keep_filenames_after_cleanup=[],
                                 keep_filename_patterns_after_cleanup=[],
-                                filenames_to_qualify=["OUTCAR", "vasprun.xml"],
+                                filenames_to_qualify=["OUTCAR"],#, "vasprun.xml"],
                                 all_present=True,
                                 df_filename=None,
                                 df_compression=True)
