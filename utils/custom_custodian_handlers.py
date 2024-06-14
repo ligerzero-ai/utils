@@ -30,9 +30,7 @@ from custodian.custodian import ErrorHandler
 from custodian.utils import backup
 from custodian.vasp.interpreter import VaspModder
 
-__author__ = (
-    "Han Lin Mai"
-)
+__author__ = "Han Lin Mai"
 __version__ = "0.1"
 __maintainer__ = "Han Mai"
 __email__ = "h.mai@mpie.de"
@@ -50,6 +48,7 @@ VASP_BACKUP_FILES = {
     "vasp.out",
     "std_err.txt",
 }
+
 
 class Han_CustomVaspErrorHandler(ErrorHandler):
     """Check if a run is converged."""
@@ -89,11 +88,20 @@ class Han_CustomVaspErrorHandler(ErrorHandler):
             # expensive algorithms.
             if len(actions) == 0:
                 if algo == "veryfast":
-                    actions.append({"dict": "INCAR", "action": {"_set": {"ALGO": "Fast"}}})
+                    actions.append(
+                        {"dict": "INCAR", "action": {"_set": {"ALGO": "Fast"}}}
+                    )
                 elif algo == "fast":
-                    actions.append({"dict": "INCAR", "action": {"_set": {"ALGO": "Normal"}}})
-                elif algo == "normal" and (v.incar.get("ISMEAR", -1) >= 0 or not 50 <= v.incar.get("IALGO", 38) <= 59):
-                    actions.append({"dict": "INCAR", "action": {"_set": {"ALGO": "All"}}})
+                    actions.append(
+                        {"dict": "INCAR", "action": {"_set": {"ALGO": "Normal"}}}
+                    )
+                elif algo == "normal" and (
+                    v.incar.get("ISMEAR", -1) >= 0
+                    or not 50 <= v.incar.get("IALGO", 38) <= 59
+                ):
+                    actions.append(
+                        {"dict": "INCAR", "action": {"_set": {"ALGO": "All"}}}
+                    )
                 else:
                     # Try mixing as last resort
                     new_settings = {
@@ -105,8 +113,12 @@ class Han_CustomVaspErrorHandler(ErrorHandler):
                         "BMIX_MAG": 0.001,
                     }
 
-                    if not all(v.incar.get(k, "") == val for k, val in new_settings.items()):
-                        actions.append({"dict": "INCAR", "action": {"_set": new_settings}})
+                    if not all(
+                        v.incar.get(k, "") == val for k, val in new_settings.items()
+                    ):
+                        actions.append(
+                            {"dict": "INCAR", "action": {"_set": new_settings}}
+                        )
 
         elif not v.converged_ionic:
             # Just continue optimizing and let other handlers fix ionic

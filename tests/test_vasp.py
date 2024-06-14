@@ -3,7 +3,8 @@ import tempfile
 import os
 import shutil
 
-from utils.vasp.database import (find_vasp_directories)
+from utils.vasp.database import find_vasp_directories
+
 
 class TestFindVaspDirectories(unittest.TestCase):
     def setUp(self):
@@ -57,14 +58,16 @@ class TestFindVaspDirectories(unittest.TestCase):
         all_present = False
         extract_tarballs = True
 
-        directories = find_vasp_directories(parent_dir, filenames, all_present, extract_tarballs)
+        directories = find_vasp_directories(
+            parent_dir, filenames, all_present, extract_tarballs
+        )
 
         self.assertEqual(len(directories), 2)
 
         expected_dirs = ["dir2", "dir3"]
         for dir_name in expected_dirs:
             self.assertIn(dir_name, [os.path.basename(dir) for dir in directories])
-            
+
     def test_find_vasp_directories_negative(self):
         # Create a temporary empty directory to test the negative case
         empty_dir = tempfile.mkdtemp()
@@ -75,10 +78,13 @@ class TestFindVaspDirectories(unittest.TestCase):
         all_present = True
         extract_tarballs = True
 
-        directories = find_vasp_directories(parent_dir, filenames, all_present, extract_tarballs)
+        directories = find_vasp_directories(
+            parent_dir, filenames, all_present, extract_tarballs
+        )
 
         # Assert that the function returns an empty list as there are no directories that meet the criteria
         self.assertEqual(len(directories), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,6 +12,7 @@ import zipfile
 from monty.os.path import find_exts
 from monty.io import zopen
 
+
 def chunk_list(lst, n):
     """
     Split a list into smaller chunks with a maximum size of n.
@@ -29,7 +30,8 @@ def chunk_list(lst, n):
         >>> print(chunked_list)
         [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
     """
-    return [lst[i:i + n] for i in range(0, len(lst), n)]
+    return [lst[i : i + n] for i in range(0, len(lst), n)]
+
 
 def get_latest_file_iteration(directory, filename_with_iteration):
     # Check for existing resubmit.log_m files and find the largest m
@@ -37,22 +39,23 @@ def get_latest_file_iteration(directory, filename_with_iteration):
     for filename in os.listdir(directory):
         if filename_with_iteration in filename:
             resubmit_log_files.append(filename)
-            
+
     max_integer = -1
-    
+
     if not resubmit_log_files:
         return -1
     else:
         for log_file in resubmit_log_files:
             if log_file.startswith(filename_with_iteration):
                 try:
-                    num_str = log_file[len(filename_with_iteration):]
+                    num_str = log_file[len(filename_with_iteration) :]
                     num = int(num_str)
                     max_integer = max(max_integer, num)
                 except ValueError:
                     pass  # Ignore non-integer parts after "resubmit.log_"
         return max_integer
-    
+
+
 def search_line_in_file(filename, line_to_search, search_depth=None, reverse=True):
     """
     Searches for a specific line in a file.
@@ -85,21 +88,22 @@ def search_line_in_file(filename, line_to_search, search_depth=None, reverse=Tru
         - If the file is not found, the function returns False.
     """
     try:
-        with open(filename, 'r') as file:
+        with open(filename, "r") as file:
             lines = file.readlines()
             if reverse:
-                lines = reversed(lines)  # Reverse the lines           
+                lines = reversed(lines)  # Reverse the lines
             count = 0
             for line in lines:
                 if search_depth is not None and count >= search_depth:
-                    break                
+                    break
                 if line_to_search in line.strip():
-                    return True                
-                count += 1            
+                    return True
+                count += 1
             return False
     except FileNotFoundError:
         # print("File not found:", filename)
         return False
+
 
 def parse_lines(flist, trigger_start, trigger_end, recursive=True):
     """
@@ -155,6 +159,7 @@ def parse_lines(flist, trigger_start, trigger_end, recursive=True):
 
     return data
 
+
 def find_directories_with_files(parent_dir, filenames, all_present=True):
     """
     Finds directories in a parent directory that contain specified files.
@@ -182,7 +187,9 @@ def find_directories_with_files(parent_dir, filenames, all_present=True):
         - The function returns a list of directories that meet the specified conditions.
     """
     directories = []
-    file_set = set(filenames)  # Convert filenames to a set for efficient membership checking
+    file_set = set(
+        filenames
+    )  # Convert filenames to a set for efficient membership checking
 
     for root, dirs, files in os.walk(parent_dir):
         # Check if the intersection of file_set and files is not empty
@@ -192,6 +199,7 @@ def find_directories_with_files(parent_dir, filenames, all_present=True):
             directories.append(root)
 
     return directories
+
 
 def extract_tarball(archive_filepath, extraction_path):
     """
@@ -224,7 +232,10 @@ def extract_tarball(archive_filepath, extraction_path):
     except Exception as e:
         print(f"Error extracting archive: {e}")
 
-def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz",), max_workers=None):
+
+def find_and_extract_tarballs_parallel(
+    parent_dir, extensions=(".tar.gz",), max_workers=None
+):
     """
     Finds tarball files with specified extensions in a directory and extracts them in parallel.
 
@@ -249,10 +260,14 @@ def find_and_extract_tarballs_parallel(parent_dir, extensions=(".tar.gz",), max_
     extraction_filepaths = [os.path.dirname(filepath) for filepath in filepaths]
 
     # Prepare args_list as a list of tuples
-    args_list = [(filepath, extraction_path) for filepath, extraction_path in zip(filepaths, extraction_filepaths)]
+    args_list = [
+        (filepath, extraction_path)
+        for filepath, extraction_path in zip(filepaths, extraction_filepaths)
+    ]
 
     # Call parallelise function
     parallelise(extract_tarball, args_list, max_workers=max_workers)
+
 
 def extract_files_from_tarball(tarball_filepath, filenames, suffix=None, prefix=None):
     """
@@ -286,25 +301,39 @@ def extract_files_from_tarball(tarball_filepath, filenames, suffix=None, prefix=
     elif tarball_filepath.endswith(".bz2"):
         compression_type = "bz2"
     else:
-        raise ValueError("Unsupported compression type. Only .gz and .bz2 are supported.")
+        raise ValueError(
+            "Unsupported compression type. Only .gz and .bz2 are supported."
+        )
 
     with tarfile.open(tarball_filepath, f"r:{compression_type}") as tar:
         extracted_filepaths = []
         for filename in filenames:
             try:
-                matching_names = [name for name in tar.getnames() if name.endswith(filename)]
+                matching_names = [
+                    name for name in tar.getnames() if name.endswith(filename)
+                ]
                 for name in matching_names:
                     tar.extract(name, path=os.path.dirname(tarball_filepath))
                     if name.startswith("./"):
-                        extracted_filepath = os.path.join(os.path.dirname(tarball_filepath), name[2:])
+                        extracted_filepath = os.path.join(
+                            os.path.dirname(tarball_filepath), name[2:]
+                        )
                     else:
-                        extracted_filepath = os.path.join(os.path.dirname(tarball_filepath), name)
+                        extracted_filepath = os.path.join(
+                            os.path.dirname(tarball_filepath), name
+                        )
                     if suffix:
-                        new_path = os.path.join(os.path.dirname(extracted_filepath), os.path.basename(extracted_filepath) + "_" + suffix)
+                        new_path = os.path.join(
+                            os.path.dirname(extracted_filepath),
+                            os.path.basename(extracted_filepath) + "_" + suffix,
+                        )
                         os.rename(extracted_filepath, new_path)
                         extracted_filepath = new_path
                     if prefix:
-                        new_path = os.path.join(prefix + "_" + os.path.dirname(extracted_filepath), os.path.basename(extracted_filepath))
+                        new_path = os.path.join(
+                            prefix + "_" + os.path.dirname(extracted_filepath),
+                            os.path.basename(extracted_filepath),
+                        )
                         os.rename(extracted_filepath, new_path)
                         extracted_filepath = new_path
                     extracted_filepaths.append(extracted_filepath)
@@ -313,7 +342,10 @@ def extract_files_from_tarball(tarball_filepath, filenames, suffix=None, prefix=
 
     return extracted_filepaths
 
-def extract_files_from_tarballs_parallel(tarball_paths, filenames, suffix=False, max_workers=None):
+
+def extract_files_from_tarballs_parallel(
+    tarball_paths, filenames, suffix=False, max_workers=None
+):
     """
     Extracts specific files from multiple tarball files in parallel and optionally renames them with suffixes.
 
@@ -346,39 +378,47 @@ def extract_files_from_tarballs_parallel(tarball_paths, filenames, suffix=False,
     elif isinstance(filenames, list):
         if isinstance(filenames[0], str):
             if len(filenames) != len(tarball_paths):
-                raise ValueError("The length of filenames should match the number of tarball_paths.")
+                raise ValueError(
+                    "The length of filenames should match the number of tarball_paths."
+                )
         else:
             raise ValueError("Invalid format for filenames.")
     else:
         raise ValueError("Invalid format for filenames.")
 
     if suffix:
-        suffixes = [os.path.basename(filepath).split(".tar")[0] for filepath in tarball_paths]
+        suffixes = [
+            os.path.basename(filepath).split(".tar")[0] for filepath in tarball_paths
+        ]
     else:
         suffixes = [None for _ in tarball_paths]
 
     # Prepare args_list as a list of tuples
-    args_list = [(tarball_path, filename, suffix) for tarball_path, filename, suffix in zip(tarball_paths, filenames, suffixes)]
+    args_list = [
+        (tarball_path, filename, suffix)
+        for tarball_path, filename, suffix in zip(tarball_paths, filenames, suffixes)
+    ]
 
     # Call parallelise function
     parallelise(extract_files_from_tarball, args_list, max_workers=max_workers)
 
-def find_and_extract_files_from_tarballs_parallel(parent_dir,
-                                                  extension=(".tar.gz",),
-                                                  filenames=[],
-                                                  suffix=False,
-                                                  prefix=False,
-                                                  exclude_containing=["error."],
-                                                  max_workers=None):
+
+def find_and_extract_files_from_tarballs_parallel(
+    parent_dir,
+    extension=(".tar.gz",),
+    filenames=[],
+    suffix=False,
+    prefix=False,
+    exclude_containing=["error."],
+    max_workers=None,
+):
     """
     Finds and extracts specific files from multiple tarball files within a parent directory using parallel processing.
 
     Parameters:
         parent_dir (str): The path of the parent directory to search for tarball files.
         extension (str or tuple, optional): The file extension(s) of the tarball files to search for. Defaults to ".tar.gz".
-        filenames (str or list, optional): The filenames to extract from the tarball(s). If a string, it will be used for all tarball files.
-                                           If a list, it should have the same length as the number of tarball files found in the parent directory.
-                                           Defaults to an empty list, which means all files will be extracted.
+        filenames (list, optional): List of filenames to extract from the tarball files.
         suffix (bool, optional): Determines whether to append suffixes to the extracted filenames. Defaults to False.
         prefix (bool, optional): Determines whether to prepend prefixes to the extracted filenames. Defaults to False.
         exclude_containing (list, optional): A list of strings. Tarballs whose names contain any of these strings will be excluded from extraction.
@@ -398,43 +438,60 @@ def find_and_extract_files_from_tarballs_parallel(parent_dir,
         - The function searches for tarball files within the specified `parent_dir` using the provided `extension`.
         - It finds and extracts specific `filenames` from the tarball files, either all files or the specified files.
         - If `suffix` is True, the extracted filenames will be appended with suffixes.
+        - If `prefix` is True, the extracted filenames will be prepended with prefixes.
         - The extraction process is parallelized using the `parallelise()` function and the `extract_files_from_tarball` function.
         - Tarballs whose names contain any of the strings in `exclude_containing` will be skipped during extraction.
     """
     filepaths = find_exts(top=parent_dir, exts=extension)
 
     # Filter out tarballs that contain any of the strings in exclude_containing
-    filepaths = [filepath for filepath in filepaths if not any(exclude in os.path.basename(filepath) for exclude in exclude_containing)]
+    filepaths = [
+        filepath
+        for filepath in filepaths
+        if not any(
+            exclude in os.path.basename(filepath) for exclude in exclude_containing
+        )
+    ]
 
     if suffix:
-        suffixes = [os.path.basename(filepath).split(".tar")[0] for filepath in filepaths]
+        suffixes = [
+            os.path.basename(filepath).split(".tar")[0] for filepath in filepaths
+        ]
     else:
         suffixes = [None for _ in filepaths]
-        
+
     if prefix:
-        prefixes = [os.path.basename(filepath).split(".tar")[0] for filepath in filepaths]
+        prefixes = [
+            os.path.basename(filepath).split(".tar")[0] for filepath in filepaths
+        ]
     else:
         prefixes = [None for _ in filepaths]
 
-    if isinstance(filenames, str):
-        filenames = [filenames] * len(filepaths)
-    elif isinstance(filenames, list):
-        if len(filenames) != len(filepaths):
-            raise ValueError("The length of filenames should match the number of tarball files found.")
-    else:
-        raise ValueError("Invalid format for filenames.")
+    if not isinstance(filenames, list):
+        raise ValueError(
+            "The 'filenames' parameter should be a list of filenames to extract."
+        )
 
     # Prepare args_list as a list of tuples
-    args_list = [(filepath, filename) for filepath, filename in zip(filepaths, filenames)]
+    args_list = [(filepath, filenames) for filepath in filepaths]
 
     # Call parallelise function
-    parallelise(extract_files_from_tarball, args_list, max_workers=max_workers, suffix=suffixes, prefix=prefixes)
+    parallelise(
+        extract_files_from_tarball,
+        args_list,
+        max_workers=max_workers,
+        suffix=suffixes,
+        prefix=prefixes,
+    )
 
-def compress_directory(directory_path,
-                       exclude_files = [],
-                       exclude_file_patterns = [],
-                       print_message=True,
-                       inside_dir=True):
+
+def compress_directory(
+    directory_path,
+    exclude_files=[],
+    exclude_file_patterns=[],
+    print_message=True,
+    inside_dir=True,
+):
     """
     Compresses a directory and its contents into a tarball with gzip compression.
 
@@ -465,9 +522,14 @@ def compress_directory(directory_path,
         - The `print_message` parameter controls whether a message indicating the compression is printed. By default, it is set to True.
     """
     if inside_dir:
-        output_file = os.path.join(directory_path, os.path.basename(directory_path) + '.tar.gz')
+        output_file = os.path.join(
+            directory_path, os.path.basename(directory_path) + ".tar.gz"
+        )
     else:
-        output_file = os.path.join(os.path.dirname(directory_path), os.path.basename(directory_path) + '.tar.gz')
+        output_file = os.path.join(
+            os.path.dirname(directory_path),
+            os.path.basename(directory_path) + ".tar.gz",
+        )
     with tarfile.open(output_file, "w:gz") as tar:
         for root, _, files in os.walk(directory_path):
             for file in files:
@@ -475,23 +537,31 @@ def compress_directory(directory_path,
                 # Exclude the output tarball from being added
                 if file_path == output_file:
                     continue
-                if any(fnmatch.fnmatch(file, pattern) for pattern in exclude_file_patterns):
+                if any(
+                    fnmatch.fnmatch(file, pattern) for pattern in exclude_file_patterns
+                ):
                     continue
                 if file in exclude_files:
                     continue
-                arcname = os.path.join(os.path.basename(directory_path), os.path.relpath(file_path, directory_path))
+                arcname = os.path.join(
+                    os.path.basename(directory_path),
+                    os.path.relpath(file_path, directory_path),
+                )
                 tar.add(file_path, arcname=arcname)
-                # tar.add(file_path, arcname=os.path.relpath(file_path, directory_path))      
+                # tar.add(file_path, arcname=os.path.relpath(file_path, directory_path))
                 # print(f"{file} added")
     if print_message:
         print(f"Compressed directory: {directory_path}")
 
-def compress_directory_parallel(directory_paths,
-                                exclude_files=None,
-                                exclude_file_patterns=None,
-                                print_message=None,
-                                inside_dir=None,
-                                max_workers=None):
+
+def compress_directory_parallel(
+    directory_paths,
+    exclude_files=None,
+    exclude_file_patterns=None,
+    print_message=None,
+    inside_dir=None,
+    max_workers=None,
+):
     """
     Compresses multiple directories and their contents into tarballs with gzip compression in parallel.
 
@@ -522,15 +592,18 @@ def compress_directory_parallel(directory_paths,
         - The `print_message` parameter controls whether a message indicating the compression is printed for each directory.
         - The function parallelizes the compression process using the `parallelise()` function and the `compress_directory` function.
     """
-    parallelise(compress_directory,
-                directory_paths,
-                max_workers=max_workers,
-                exclude_files=exclude_files,
-                exclude_file_patterns=exclude_file_patterns,
-                print_message=print_message,
-                inside_dir=inside_dir)
-       
-def cleanup_dir(directory_path, keep=True, files=[], file_patterns=[]):    
+    parallelise(
+        compress_directory,
+        directory_paths,
+        max_workers=max_workers,
+        exclude_files=exclude_files,
+        exclude_file_patterns=exclude_file_patterns,
+        print_message=print_message,
+        inside_dir=inside_dir,
+    )
+
+
+def cleanup_dir(directory_path, keep=True, files=[], file_patterns=[]):
     """
     Cleans up files in a directory based on specified conditions.
 
@@ -577,15 +650,18 @@ def cleanup_dir(directory_path, keep=True, files=[], file_patterns=[]):
                         break
                 if should_remove or file in files:
                     os.remove(file_path)
-                
-def compress_and_cleanup(directory_path, 
-                         exclude_files_from_tarball=[],
-                         exclude_filepatterns_from_tarball=[],
-                         keep_after=True,
-                         files=[],
-                         file_patterns=[],
-                         print_msg=False,
-                         inside_dir=True):
+
+
+def compress_and_cleanup(
+    directory_path,
+    exclude_files_from_tarball=[],
+    exclude_filepatterns_from_tarball=[],
+    keep_after=True,
+    files=[],
+    file_patterns=[],
+    print_msg=False,
+    inside_dir=True,
+):
     """
     Compresses a directory and its contents into a tarball with gzip compression, and performs cleanup operations.
 
@@ -615,32 +691,39 @@ def compress_and_cleanup(directory_path,
         - The `print_msg` parameter controls whether a message indicating the compression is printed for the directory.
         - The `inside_dir` parameter determines whether the output tarball should be placed inside the directory (True) or in the same directory as the directory (False).
     """
-    compress_directory(directory_path=directory_path,
-                       exclude_files=exclude_files_from_tarball,
-                       exclude_file_patterns=exclude_filepatterns_from_tarball,
-                       print_message=print_msg,
-                       inside_dir=inside_dir)
+    compress_directory(
+        directory_path=directory_path,
+        exclude_files=exclude_files_from_tarball,
+        exclude_file_patterns=exclude_filepatterns_from_tarball,
+        print_message=print_msg,
+        inside_dir=inside_dir,
+    )
     # Add the newly compressed directory to the exceptions, or we'll remove it!
     if keep_after:
         file_patterns += [f"{os.path.basename(directory_path)}.tar.gz"]
     else:
         file_patterns = file_patterns
-    cleanup_dir(directory_path=directory_path,
-                keep=keep_after,
-                files=files,
-                file_patterns=file_patterns)
-    
-def find_and_compress_directories_parallel(parent_dir,
-                                           valid_dir_if_filenames,
-                                           all_present=False,
-                                           exclude_files_from_tarball=[],
-                                           exclude_filepatterns_from_tarball=[],
-                                           keep_after=True,
-                                           files=[],
-                                           file_patterns=[],
-                                           print_msg=False,
-                                           inside_dir=True,
-                                           max_workers=None):
+    cleanup_dir(
+        directory_path=directory_path,
+        keep=keep_after,
+        files=files,
+        file_patterns=file_patterns,
+    )
+
+
+def find_and_compress_directories_parallel(
+    parent_dir,
+    valid_dir_if_filenames,
+    all_present=False,
+    exclude_files_from_tarball=[],
+    exclude_filepatterns_from_tarball=[],
+    keep_after=True,
+    files=[],
+    file_patterns=[],
+    print_msg=False,
+    inside_dir=True,
+    max_workers=None,
+):
     """
     Finds directories containing specific files, and compresses each directory and its contents into tarballs with gzip compression in parallel.
 
@@ -676,17 +759,22 @@ def find_and_compress_directories_parallel(parent_dir,
         - The `inside_dir` parameter determines whether the output tarball should be placed inside each directory (True) or in the same directory as each directory (False).
         - The function parallelizes the compression process using the `parallelise()` function and the `compress_and_cleanup` function.
     """
-    dirs_to_compress = find_directories_with_files(parent_dir=parent_dir, filenames=valid_dir_if_filenames, all_present=all_present)
-    parallelise(compress_and_cleanup,
-                dirs_to_compress,
-                max_workers=max_workers,
-                exclude_files_from_tarball=exclude_files_from_tarball,
-                exclude_filepatterns_from_tarball=exclude_filepatterns_from_tarball,
-                keep_after=keep_after,
-                files = files,
-                file_patterns = file_patterns,
-                print_msg = print_msg,
-                inside_dir = inside_dir)
+    dirs_to_compress = find_directories_with_files(
+        parent_dir=parent_dir, filenames=valid_dir_if_filenames, all_present=all_present
+    )
+    parallelise(
+        compress_and_cleanup,
+        dirs_to_compress,
+        max_workers=max_workers,
+        exclude_files_from_tarball=exclude_files_from_tarball,
+        exclude_filepatterns_from_tarball=exclude_filepatterns_from_tarball,
+        keep_after=keep_after,
+        files=files,
+        file_patterns=file_patterns,
+        print_msg=print_msg,
+        inside_dir=inside_dir,
+    )
+
 
 def is_line_in_file(filepath, line, exact_match=True):
     """
@@ -711,7 +799,7 @@ def is_line_in_file(filepath, line, exact_match=True):
         ...     print("Line not found in the file.")
     """
     try:
-        with open(filepath, 'r') as file:
+        with open(filepath, "r") as file:
             for file_line in file:
                 if exact_match and line == file_line.strip():
                     return True

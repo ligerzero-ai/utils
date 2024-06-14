@@ -11,6 +11,7 @@ import numpy as np
 
 # RIPPED FROM MPINTERFACES
 
+
 def center_slab(structure):
     """
     Centers the atoms in a slab structure around 0.5
@@ -26,6 +27,7 @@ def center_slab(structure):
     translation = (0, 0, 0.5 - center)
     structure.translate_sites(range(len(structure.sites)), translation)
     return structure
+
 
 def get_rotation_matrix(axis, theta):
     """
@@ -43,16 +45,21 @@ def get_rotation_matrix(axis, theta):
 
     axis = np.array(list(axis))
     axis = axis / np.linalg.norm(axis)
-    axis *= -np.sin(theta/2.0)
-    a = np.cos(theta/2.0)
+    axis *= -np.sin(theta / 2.0)
+    a = np.cos(theta / 2.0)
     b, c, d = tuple(axis.tolist())
-    aa, bb, cc, dd = a*a, b*b, c*c, d*d
-    bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
-    return np.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
-                     [2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab)],
-                     [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]])
+    aa, bb, cc, dd = a * a, b * b, c * c, d * d
+    bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+    return np.array(
+        [
+            [aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+            [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+            [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc],
+        ]
+    )
 
-def align_axis(structure, axis='c', direction=(0, 0, 1)):
+
+def align_axis(structure, axis="c", direction=(0, 0, 1)):
     """
     Rotates a structure so that the specified axis is along
     the [001] direction. This is useful for adding vacuum, and
@@ -66,22 +73,22 @@ def align_axis(structure, axis='c', direction=(0, 0, 1)):
         structure. Rotated to align axis along direction.
     """
 
-    if axis == 'a':
+    if axis == "a":
         axis = structure.lattice._matrix[0]
-    elif axis == 'b':
+    elif axis == "b":
         axis = structure.lattice._matrix[1]
-    elif axis == 'c':
+    elif axis == "c":
         axis = structure.lattice._matrix[2]
     proj_axis = np.cross(axis, direction)
-    if not(proj_axis[0] == 0 and proj_axis[1] == 0):
-        theta = (
-            np.arccos(np.dot(axis, direction)
-            / (np.linalg.norm(axis) * np.linalg.norm(direction)))
+    if not (proj_axis[0] == 0 and proj_axis[1] == 0):
+        theta = np.arccos(
+            np.dot(axis, direction) / (np.linalg.norm(axis) * np.linalg.norm(direction))
         )
         R = get_rotation_matrix(proj_axis, theta)
         rotation = SymmOp.from_rotation_and_translation(rotation_matrix=R)
         structure.apply_operation(rotation)
     return structure
+
 
 def add_vacuum(structure, vacuum):
     """
@@ -103,20 +110,27 @@ def add_vacuum(structure, vacuum):
     structure = Structure(lattice_C, species, coords, coords_are_cartesian=True)
     return center_slab(structure)
 
+
 def cleave_sites(structure, cleave_line_coord, vacuum_size):
-    site_list = []; site_list2 = []
+    site_list = []
+    site_list2 = []
     for idx, sites in enumerate(structure):
         if sites.frac_coords[-1] > cleave_line_coord:
-            #print(idx)
+            # print(idx)
             site_list.append(idx)
         else:
-            #print(idx)
+            # print(idx)
             site_list2.append(idx)
-    transformation_shift_up = transform.TranslateSitesTransformation(site_list,(0,0,vacuum_size/2),vector_in_frac_coords=False)
-    transformation_shift_down = transform.TranslateSitesTransformation(site_list2,(0,0,-vacuum_size/2),vector_in_frac_coords=False)
+    transformation_shift_up = transform.TranslateSitesTransformation(
+        site_list, (0, 0, vacuum_size / 2), vector_in_frac_coords=False
+    )
+    transformation_shift_down = transform.TranslateSitesTransformation(
+        site_list2, (0, 0, -vacuum_size / 2), vector_in_frac_coords=False
+    )
     cleaved_cell = transformation_shift_up.apply_transformation(structure)
     cleaved_cell = transformation_shift_down.apply_transformation(cleaved_cell)
     return cleaved_cell
+
 
 def get_unique_values_in_nth_value(arr_list, n, tolerance):
     """
@@ -142,6 +156,7 @@ def get_unique_values_in_nth_value(arr_list, n, tolerance):
             unique_values.append(value)
     return np.sort(unique_values)
 
+
 def compute_average_pairs(lst):
     """
     Computes the average of consecutive pairs in the given list.
@@ -158,6 +173,7 @@ def compute_average_pairs(lst):
         averages.append(average)
     return averages
 
+
 def get_non_host_ele_idx(structure, host_elements):
     """
     Returns the indices of non-host elements in the structure.
@@ -169,10 +185,17 @@ def get_non_host_ele_idx(structure, host_elements):
     Returns:
     - list: Indices of non-host elements in the structure.
     """
-    non_host_indices = [i for i, site in enumerate(structure) if site.species_string not in host_elements]
+    non_host_indices = [
+        i
+        for i, site in enumerate(structure)
+        if site.species_string not in host_elements
+    ]
     return non_host_indices
 
-def get_min_max_cp_coords_solute(structure, host_elements, axis, threshold=5, fractional=True):
+
+def get_min_max_cp_coords_solute(
+    structure, host_elements, axis, threshold=5, fractional=True
+):
     """
     Returns the minimum and maximum coordinates of solute elements along the specified axis.
 
@@ -192,15 +215,18 @@ def get_min_max_cp_coords_solute(structure, host_elements, axis, threshold=5, fr
     for site_idx in non_host_indices:
         coord = structure[site_idx].frac_coords[axis]
         if max_coord is None or coord > max_coord:
-            max_coord = (coord + threshold/structure.lattice.abc[axis]) 
+            max_coord = coord + threshold / structure.lattice.abc[axis]
         if min_coord is None or coord < min_coord:
-            min_coord = (coord - threshold/structure.lattice.abc[axis])
+            min_coord = coord - threshold / structure.lattice.abc[axis]
     if not fractional:
         max_coord = max_coord * structure.lattice.abc[axis]
         min_coord = min_coord * structure.lattice.abc[axis]
     return [min_coord, max_coord]
 
-def get_cp_coords_solute(structure, host_elements, axis, threshold=5, tolerance=0.01, fractional=True):
+
+def get_cp_coords_solute(
+    structure, host_elements, axis, threshold=5, tolerance=0.01, fractional=True
+):
     """
     Returns viable coordinates for solute elements within a specified range along the specified axis.
 
@@ -215,11 +241,17 @@ def get_cp_coords_solute(structure, host_elements, axis, threshold=5, tolerance=
     Returns:
     - list: List of viable coordinates for solute elements.
     """
-    min_max = get_min_max_cp_coords_solute(structure, host_elements, axis, fractional=fractional, threshold=threshold)
+    min_max = get_min_max_cp_coords_solute(
+        structure, host_elements, axis, fractional=fractional, threshold=threshold
+    )
     if fractional:
-        atomic_layers = get_unique_values_in_nth_value(structure.frac_coords, -1, tolerance=tolerance/structure.lattice.abc[axis])
+        atomic_layers = get_unique_values_in_nth_value(
+            structure.frac_coords, -1, tolerance=tolerance / structure.lattice.abc[axis]
+        )
     else:
-        atomic_layers = get_unique_values_in_nth_value(structure.cart_coords, -1, tolerance=tolerance)
+        atomic_layers = get_unique_values_in_nth_value(
+            structure.cart_coords, -1, tolerance=tolerance
+        )
     cp_list = compute_average_pairs(atomic_layers)
     min_cp_thres = min_max[0]
     max_cp_thres = min_max[1]
@@ -227,14 +259,17 @@ def get_cp_coords_solute(structure, host_elements, axis, threshold=5, tolerance=
     cp_viable = [cp for cp in cp_list if min_cp_thres <= cp <= max_cp_thres]
     return cp_viable
 
-def cleave_structure(structure, cleave_line_coord, cleave_vacuum_length, axis, fractional=True):
+
+def cleave_structure(
+    structure, cleave_line_coord, cleave_vacuum_length, axis, fractional=True
+):
     """
-    Cleaves the structure along a specified coordinate line. 
-    Assumes vacuum is already present! 
+    Cleaves the structure along a specified coordinate line.
+    Assumes vacuum is already present!
     If not, please:
-    
-    structure = add_vacuum(structure) 
-    
+
+    structure = add_vacuum(structure)
+
     before this!
 
     Parameters:
@@ -247,47 +282,76 @@ def cleave_structure(structure, cleave_line_coord, cleave_vacuum_length, axis, f
     Returns:
     - pymatgen.Structure: Cleaved structure.
     """
-    site_list = []; site_list2 = []
+    site_list = []
+    site_list2 = []
     for idx, sites in enumerate(structure):
         if fractional:
-            if sites.frac_coords[axis] > cleave_line_coord:     
+            if sites.frac_coords[axis] > cleave_line_coord:
                 site_list.append(idx)
             else:
                 site_list2.append(idx)
         else:
-            if sites.coords[axis] > cleave_line_coord:     
+            if sites.coords[axis] > cleave_line_coord:
                 site_list.append(idx)
             else:
                 site_list2.append(idx)
     shift = [0, 0, 0]
-    shift[axis] = cleave_vacuum_length/2
+    shift[axis] = cleave_vacuum_length / 2
     shift2 = shift.copy()
-    shift2[axis] = -cleave_vacuum_length/2
-    transformation_shift_up = transform.TranslateSitesTransformation(site_list,tuple(shift),vector_in_frac_coords=False)
-    transformation_shift_down = transform.TranslateSitesTransformation(site_list2,tuple(shift2),vector_in_frac_coords=False)
+    shift2[axis] = -cleave_vacuum_length / 2
+    transformation_shift_up = transform.TranslateSitesTransformation(
+        site_list, tuple(shift), vector_in_frac_coords=False
+    )
+    transformation_shift_down = transform.TranslateSitesTransformation(
+        site_list2, tuple(shift2), vector_in_frac_coords=False
+    )
     cleaved_struct = transformation_shift_up.apply_transformation(structure)
     cleaved_struct = transformation_shift_down.apply_transformation(cleaved_struct)
     return cleaved_struct
 
-def cleave_structure_around_solutes(structure,
-                                    host_elements,
-                                    axis=2,
-                                    cleave_vacuum_length=6,
-                                    sol_dist_threshold=5,
-                                    tolerance=0.01,
-                                    add_vacuum_block_length=None):
+
+def cleave_structure_around_solutes(
+    structure,
+    host_elements,
+    axis=2,
+    cleave_vacuum_length=6,
+    sol_dist_threshold=5,
+    tolerance=0.01,
+    add_vacuum_block_length=None,
+):
     if add_vacuum_block_length is not None:
-        structure = add_vacuum(structure,vacuum=add_vacuum_block_length)
-    cp_coords = get_cp_coords_solute(structure, host_elements=host_elements, axis=axis, threshold=sol_dist_threshold, tolerance=tolerance)
+        structure = add_vacuum(structure, vacuum=add_vacuum_block_length)
+    cp_coords = get_cp_coords_solute(
+        structure,
+        host_elements=host_elements,
+        axis=axis,
+        threshold=sol_dist_threshold,
+        tolerance=tolerance,
+    )
     cleaved_struct_list = []
     for cp in cp_coords:
-        cleaved_struct = cleave_structure(structure,cleave_line_coord=cp,cleave_vacuum_length=cleave_vacuum_length, axis=axis)
+        cleaved_struct = cleave_structure(
+            structure,
+            cleave_line_coord=cp,
+            cleave_vacuum_length=cleave_vacuum_length,
+            axis=axis,
+        )
         cleaved_struct_list.append(cleaved_struct)
     return cleaved_struct_list
 
-def cleave_structures_around_site(structure, site_index, axis=2, cleave_vacuum_length=6, site_dist_threshold=5, tolerance=0.01, add_vacuum_block_length=None, fractional=True):
+
+def cleave_structures_around_site(
+    structure,
+    site_index,
+    axis=2,
+    cleave_vacuum_length=6,
+    site_dist_threshold=5,
+    tolerance=0.01,
+    add_vacuum_block_length=None,
+    fractional=True,
+):
     """
-    Cleaves a structure around a specified site. Assumes vacuum is already present! 
+    Cleaves a structure around a specified site. Assumes vacuum is already present!
     If not, add vacuum before this.
 
     Parameters:
@@ -306,11 +370,15 @@ def cleave_structures_around_site(structure, site_index, axis=2, cleave_vacuum_l
     if add_vacuum_block_length is not None:
         structure = add_vacuum(structure, vacuum=add_vacuum_block_length)
 
-    site_coord = structure[site_index].frac_coords[axis] if fractional else structure[site_index].coords[axis]
+    site_coord = (
+        structure[site_index].frac_coords[axis]
+        if fractional
+        else structure[site_index].coords[axis]
+    )
 
     # Determine the range of coordinates around the specified site
-    min_coord = site_coord - site_dist_threshold/structure.lattice.abc[axis]
-    max_coord = site_coord + site_dist_threshold/structure.lattice.abc[axis]
+    min_coord = site_coord - site_dist_threshold / structure.lattice.abc[axis]
+    max_coord = site_coord + site_dist_threshold / structure.lattice.abc[axis]
 
     # Get unique values in the specified axis within the tolerance
     coords = structure.frac_coords if fractional else structure.cart_coords
@@ -322,7 +390,13 @@ def cleave_structures_around_site(structure, site_index, axis=2, cleave_vacuum_l
 
     cleaved_struct_list = []
     for cp in cp_viable:
-        cleaved_struct = cleave_structure(structure, cleave_line_coord=cp, cleave_vacuum_length=cleave_vacuum_length, axis=axis, fractional=fractional)
+        cleaved_struct = cleave_structure(
+            structure,
+            cleave_line_coord=cp,
+            cleave_vacuum_length=cleave_vacuum_length,
+            axis=axis,
+            fractional=fractional,
+        )
         cleaved_struct_list.append(cleaved_struct)
 
     return cleaved_struct_list

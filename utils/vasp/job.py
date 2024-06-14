@@ -5,13 +5,16 @@ import io
 potcar_library_path = "/root/POTCAR_Library/GGA"
 potcar_library_path = "/cmmc/u/hmai/pyiron-resources-cmmc/vasp/potentials/potpaw_PBE"
 
-def createFolder(directory, delete_folder='no'):
-    import os; import shutil
+
+def createFolder(directory, delete_folder="no"):
+    import os
+    import shutil
+
     if not os.path.exists(directory):
         os.makedirs(directory)
     else:
-        if delete_folder == 'no':
-            #print('no replacement/deletion created due to folder existing')
+        if delete_folder == "no":
+            # print('no replacement/deletion created due to folder existing')
             x = 1
         else:
             print("removing directory...")
@@ -22,11 +25,17 @@ def createFolder(directory, delete_folder='no'):
             else:
                 print("given path is a special file - manually remove")
 
+
 def get_immediate_subdirectories(a_dir):
-    return [f.path for f in os.scandir(a_dir) if f.is_dir() and os.path.basename(f) != ".ipynb_checkpoints"]
+    return [
+        f.path
+        for f in os.scandir(a_dir)
+        if f.is_dir() and os.path.basename(f) != ".ipynb_checkpoints"
+    ]
+
 
 class jobfile:
-    '''
+    """
     Class for jobfile object for passing into createJobFolder
 
     Attributes:
@@ -48,15 +57,18 @@ class jobfile:
     RAM: RAM to be allocated - this is only specified in the case of Gadi, Setonix + magnus do not need specification.
     walltime: INTEGER ONLY
               The walltime of the job in hours
-    '''
-    def __init__(self,
-                 file_path,
-                 HPC = "Gadi",
-                 VASP_version = "5.4.4",
-                 CPU = 192,
-                 RAM = 64,
-                 walltime = 999,
-                 max_resubmissions = 999):
+    """
+
+    def __init__(
+        self,
+        file_path,
+        HPC="Gadi",
+        VASP_version="5.4.4",
+        CPU=192,
+        RAM=64,
+        walltime=999,
+        max_resubmissions=999,
+    ):
         self.file_path = file_path
         self.HPC = HPC
         self.VASP_version = VASP_version
@@ -65,9 +77,9 @@ class jobfile:
         self.walltime = walltime
         self.max_resubmissions = max_resubmissions
 
-    def to_file(self,\
-                case_name = 'template_job',\
-                output_path = os.path.join(os.getcwd(), "test")):
+    def to_file(
+        self, case_name="template_job", output_path=os.path.join(os.getcwd(), "test")
+    ):
         """
         Writes KPOINTS file with MP gamma centred grid:
 
@@ -78,7 +90,7 @@ class jobfile:
 
         createFolder(output_path)
 
-        with open("%s" % (self.file_path), 'r') as fin :
+        with open("%s" % (self.file_path), "r") as fin:
             filedata = fin.read()
         if self.HPC == "Gadi":
             fin = open("%s" % (self.file_path), "rt", newline="\n")
@@ -87,7 +99,9 @@ class jobfile:
         # Replace the target string
         filedata = filedata.replace("{WALLTIMESTRING}", "%s:00:00" % self.walltime)
         filedata = filedata.replace("{CPUSTRING}", str(self.CPU))
-        filedata = filedata.replace("{MAXCONVITERATIONS}", str(self.max_resubmissions-1))
+        filedata = filedata.replace(
+            "{MAXCONVITERATIONS}", str(self.max_resubmissions - 1)
+        )
 
         # Only on GADI
         filedata = filedata.replace("{MEMORYSTRING}", "%sGB" % self.RAM)
@@ -99,32 +113,42 @@ class jobfile:
             max_cpu_count = 128
         elif self.HPC == "Garching":
             max_cpu_count = 40
-        if  self.CPU <= max_cpu_count:
+        if self.CPU <= max_cpu_count:
             filedata = filedata.replace("{NODESTRING}", "1")
         else:
-            filedata = filedata.replace("{NODESTRING}", "%s" % int(self.CPU/max_cpu_count))
-            
+            filedata = filedata.replace(
+                "{NODESTRING}", "%s" % int(self.CPU / max_cpu_count)
+            )
+
         filedata = filedata.replace("{CASESTRING}", "%s" % case_name)
 
         if self.VASP_version == "5.4.4":
-            filedata = filedata.replace("{VASPMODULELOADSTRING}", 'module load vasp/%s' %  self.VASP_version)
+            filedata = filedata.replace(
+                "{VASPMODULELOADSTRING}", "module load vasp/%s" % self.VASP_version
+            )
         else:
             if self.HPC == "Setonix" and self.VASP_version in ["6.3.0", "6.2.1"]:
-                filedata = filedata.replace("{VASPMODULELOADSTRING}", 'module load vasp6/%s' % self.VASP_version)
+                filedata = filedata.replace(
+                    "{VASPMODULELOADSTRING}", "module load vasp6/%s" % self.VASP_version
+                )
             else:
-                filedata = filedata.replace("{VASPMODULELOADSTRING}", 'module load vasp/%s' % self.VASP_version)
+                filedata = filedata.replace(
+                    "{VASPMODULELOADSTRING}", "module load vasp/%s" % self.VASP_version
+                )
             if self.HPC == "Garching":
                 # vasp/5.3-constrainedcollinearmagnetism  vasp/5.4.4-buildFeb20  vasp/5.4.4-elphon        vasp/5.4.4-python  vasp/6.4.0-buildMar23
                 # vasp/5.4.4      vasp/5.4.4-Dudarev     vasp/5.4.4-potentiostat  vasp/6.4.0         vasp/6.4.0-python
-                filedata = filedata.replace("{VASPMODULELOADSTRING}", 'module load vasp/%s' % self.VASP_version)
-
+                filedata = filedata.replace(
+                    "{VASPMODULELOADSTRING}", "module load vasp/%s" % self.VASP_version
+                )
 
         # Write the file out again
-        with open(os.path.join(output_path, case_name), 'w') as fout:
+        with open(os.path.join(output_path, case_name), "w") as fout:
             fout.write(filedata)
 
         fin.close()
         fout.close()
+
 
 def stackElementString(structure):
     site_element_list = [site.species_string for site in structure]
@@ -143,52 +167,54 @@ def stackElementString(structure):
     element_count.append(count)
     return element_list, element_count
 
-def createPOTCAR(structure, path = os.getcwd()):
+
+def createPOTCAR(structure, path=os.getcwd()):
 
     element_list = stackElementString(structure)[0]
     potcar_paths = []
 
     for element in element_list:
         if element == "Nb":
-            element = "Nb_sv" # Use 13 electron
-            element = "Nb_pv" # Use 11 electron
+            element = "Nb_sv"  # Use 13 electron
+            element = "Nb_pv"  # Use 11 electron
         elif element == "K":
-            element = "K_sv" # 9 electron
-            element = "K_pv" # 7 electron
+            element = "K_sv"  # 9 electron
+            element = "K_pv"  # 7 electron
         elif element == "Ca":
-            element = "Ca_sv" # 9 electron
-            element = "Ca_pv" # 7 electron
+            element = "Ca_sv"  # 9 electron
+            element = "Ca_pv"  # 7 electron
         elif element == "Rb":
-            element = "Rb_sv" # 9 electron
-            element = "Rb_pv" # 7 electron
+            element = "Rb_sv"  # 9 electron
+            element = "Rb_pv"  # 7 electron
         elif element == "Sr":
-            element = "Sr_sv" # 9 electron
+            element = "Sr_sv"  # 9 electron
         elif element == "Cs":
-            element = "Cs_sv" # 9 electron
+            element = "Cs_sv"  # 9 electron
         elif element == "Ba":
-            element = "Ba_sv" # 10 electron
+            element = "Ba_sv"  # 10 electron
         elif element == "Fr":
-            element = "Fr_sv" # 9 electron
+            element = "Fr_sv"  # 9 electron
         elif element == "Ra":
-            element = "Ra_sv" # 9 electron
+            element = "Ra_sv"  # 9 electron
         elif element == "Y":
-            element = "Y_sv" # 9 electron
+            element = "Y_sv"  # 9 electron
         elif element == "Zr":
-            element = "Zr_sv" # 10 electron
+            element = "Zr_sv"  # 10 electron
         elif element == "Fr":
-            element = "Fr_sv" # 9 electron
+            element = "Fr_sv"  # 9 electron
         elif element == "Ra":
-            element = "Ra_sv" # 9 electron
+            element = "Ra_sv"  # 9 electron
         elif element == "Y":
-            element = "Y_sv" # 9 electron
+            element = "Y_sv"  # 9 electron
 
         potcar_paths.append(os.path.join(potcar_library_path, element, "POTCAR"))
 
-    with open(os.path.join(path, "POTCAR"),'wb') as wfd:
+    with open(os.path.join(path, "POTCAR"), "wb") as wfd:
         for f in potcar_paths:
-            with open(f,'rb') as fd:
+            with open(f, "rb") as fd:
                 shutil.copyfileobj(fd, wfd)
-                
+
+
 class KPOINTS:
     """
     Class for KPOINTS object for passing into createJobFolder
@@ -200,13 +226,12 @@ class KPOINTS:
     shift: optional shift of mesh, input as list e.g. [0, 0, 0]
 
     """
+
     def __init__(self, subdivs, shift):
         self.subdivs = subdivs
         self.shift = shift
 
-    def to_file(self,\
-                case_name = 'KPOINTS',\
-                filepath = os.getcwd()):
+    def to_file(self, case_name="KPOINTS", filepath=os.getcwd()):
         """
         Writes KPOINTS file with MP gamma centred grid:
 
@@ -215,48 +240,58 @@ class KPOINTS:
 
         """
         createFolder(filepath)
-        f = io.open(os.path.join(filepath, "KPOINTS"), 'w', newline='\n')
-        with open(os.path.join(filepath, "KPOINTS"), 'a', newline='\n') as f:
+        f = io.open(os.path.join(filepath, "KPOINTS"), "w", newline="\n")
+        with open(os.path.join(filepath, "KPOINTS"), "a", newline="\n") as f:
             # File name (just string on first line of KPOINTS)
-            f.write('%s\n' % case_name)
+            f.write("%s\n" % case_name)
             # Use automatic generation "0"
-            f.write('0\n')
+            f.write("0\n")
             # Monkhorst-Pack Gamma centred grid
-            f.write('Gamma\n')
+            f.write("Gamma\n")
             # Subdivisions along reciprocal lattice vectors
-            subdiv_string = ''
+            subdiv_string = ""
             for i in self.subdivs:
                 subdiv_string += "%s " % str(i)
-            f.write('%s\n' % subdiv_string)
+            f.write("%s\n" % subdiv_string)
             # optional shift of the mesh (s_1, s_2, s_3)
-            shift_string = ''
+            shift_string = ""
             for i in self.shift:
                 shift_string += "%s " % str(i)
-            f.write('%s\n' % shift_string)
+            f.write("%s\n" % shift_string)
         f.close()
-        
-def createJobFolder(structure,\
-                    KPOINT = None,\
-                    folder_path = os.path.join(os.getcwd(), "jobfolder"),\
-                    INCAR = None,\
-                    jobfile = None,\
-                    quiet=True):
+
+
+def createJobFolder(
+    structure,
+    KPOINT=None,
+    folder_path=os.path.join(os.getcwd(), "jobfolder"),
+    INCAR=None,
+    jobfile=None,
+    quiet=True,
+):
     # This assumes that incar file base is present already, please adjust this function to adjust the incar flags
     # creates a subdirectory of chosen name in current directory
     parent_folder = os.getcwd()
     createFolder(folder_path)
 
-    structure.to(fmt="poscar", filename = os.path.join(folder_path, f"starter-{os.path.basename(folder_path)}.vasp"))
-    structure.to(fmt="poscar", filename = os.path.join(folder_path, "POSCAR"))
+    structure.to(
+        fmt="poscar",
+        filename=os.path.join(
+            folder_path, f"starter-{os.path.basename(folder_path)}.vasp"
+        ),
+    )
+    structure.to(fmt="poscar", filename=os.path.join(folder_path, "POSCAR"))
 
-    createPOTCAR(structure, path = "%s" % folder_path)
+    createPOTCAR(structure, path="%s" % folder_path)
 
     INCAR.write_file(os.path.join(folder_path, "INCAR"))
 
     if KPOINT:
-        KPOINT.to_file(filepath = folder_path)
+        KPOINT.to_file(filepath=folder_path)
 
-    jobfile.to_file(case_name = '%s.sh' % os.path.basename(folder_path),\
-                    output_path = "%s" % (folder_path))
+    jobfile.to_file(
+        case_name="%s.sh" % os.path.basename(folder_path),
+        output_path="%s" % (folder_path),
+    )
     if not quiet:
         print("Generating jobfolder, name %s" % (os.path.basename(folder_path)))

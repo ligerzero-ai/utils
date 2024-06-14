@@ -2,9 +2,14 @@ import argparse
 from utils.generic import find_and_compress_directories_parallel
 import os
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Find and compress directories based on specified criteria.')
-    parser.add_argument('directory', metavar='DIR', type=str, help='the directory to operate on')
+    parser = argparse.ArgumentParser(
+        description="Find and compress directories based on specified criteria."
+    )
+    parser.add_argument(
+        "directory", metavar="DIR", type=str, help="the directory to operate on"
+    )
     args = parser.parse_args()
 
     find_and_compress_directories_parallel(
@@ -16,8 +21,9 @@ def main():
         files=[],
         file_patterns=[],
         print_msg=True,
-        inside_dir=True
+        inside_dir=True,
     )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

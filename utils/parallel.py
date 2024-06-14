@@ -1,5 +1,6 @@
 from multiprocessing import Pool, cpu_count
 
+
 def parallelise(func, args_list, **kwargs_list):
     """
     Executes the given function in parallel by applying it to multiple sets of arguments,
@@ -40,13 +41,15 @@ def parallelise(func, args_list, **kwargs_list):
     """
     if not args_list:
         return []
-    
-    max_workers = kwargs_list.pop('max_workers', None)
+
+    max_workers = kwargs_list.pop("max_workers", None)
     if isinstance(max_workers, int):
         max_workers = max_workers
     else:
-        max_workers = cpu_count()  # Use default CPU count if max_workers not specified or not an int
-    
+        max_workers = (
+            cpu_count()
+        )  # Use default CPU count if max_workers not specified or not an int
+
     # Replicate kwargs handling special cases
     replicated_kwargs = {}
     for key, value in kwargs_list.items():
@@ -61,13 +64,16 @@ def parallelise(func, args_list, **kwargs_list):
 
     # Combine args and kwargs for each function call
     combined_args = [
-        (list(args) if isinstance(args, tuple) else [args]) + [replicated_kwargs[key][i] for key in replicated_kwargs]
+        (list(args) if isinstance(args, tuple) else [args])
+        + [replicated_kwargs[key][i] for key in replicated_kwargs]
         for i, args in enumerate(args_list)
     ]
 
     # Determine the number of processors to use
     num_processors = min(len(args_list), max_workers or cpu_count())
-    print(f"# Processes: {len(args_list)}, Processors available: {cpu_count()}, CPUs used: {num_processors}")
+    print(
+        f"# Processes: {len(args_list)}, Processors available: {cpu_count()}, CPUs used: {num_processors}"
+    )
     # Execute the function in parallel
     with Pool(processes=num_processors) as pool:
         results = pool.starmap(func, tuple(combined_args))

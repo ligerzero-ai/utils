@@ -17,6 +17,7 @@ KBAR_TO_EVA = (
     scipy.constants.physical_constants["joule-electron volt relationship"][0] / 1e22
 )
 
+
 class Outcar(object):
     """
     This module is used to parse VASP OUTCAR files.
@@ -120,10 +121,18 @@ class Outcar(object):
             "elapsed_time": elapsed_time,
             "memory_used": memory_used,
         }
-        self.parse_dict["ionic_stop_criteria"] = self.get_ionic_stop_criteria(filename=filename)
-        self.parse_dict["electronic_stop_criteria"] = self.get_electronic_stop_criteria(filename=filename)
-        self.parse_dict["max_electronic_steps"] = self.get_electronic_stop_criteria(filename=filename)    
-        self.parse_dict["max_ionic_steps"] = self.get_electronic_stop_criteria(filename=filename)    
+        self.parse_dict["ionic_stop_criteria"] = self.get_ionic_stop_criteria(
+            filename=filename
+        )
+        self.parse_dict["electronic_stop_criteria"] = self.get_electronic_stop_criteria(
+            filename=filename
+        )
+        self.parse_dict["max_electronic_steps"] = self.get_electronic_stop_criteria(
+            filename=filename
+        )
+        self.parse_dict["max_ionic_steps"] = self.get_electronic_stop_criteria(
+            filename=filename
+        )
 
         try:
             self.parse_dict["pressures"] = (
@@ -177,30 +186,34 @@ class Outcar(object):
         """
         with hdf.open(group_name) as hdf5_output:
             for key in hdf5_output.list_nodes():
-                self.parse_dict[key] = hdf5_output[key]     
-                
-    def extract_value_from_line(self, line, position = 1, split = "="):
+                self.parse_dict[key] = hdf5_output[key]
+
+    def extract_value_from_line(self, line, position=1, split="="):
         parts = line.split(split)
         if len(parts) > 1:
             return float(parts[position].strip().split()[0].strip(";"))
         return None
-               
+
     def find_and_extract_value_from_matched_line(self, filename, search_term):
-        with open(filename, 'r') as file:
+        with open(filename, "r") as file:
             for line in file:
                 if search_term in line:
                     value = self.extract_value_from_line(line)
-        return value              
-      
+        return value
+
     def get_ionic_stop_criteria(self, filename="OUTCAR"):
-        return self.find_and_extract_value_from_matched_line(filename, "stopping-criterion for IOM")
-    
+        return self.find_and_extract_value_from_matched_line(
+            filename, "stopping-criterion for IOM"
+        )
+
     def get_electronic_stop_criteria(self, filename="OUTCAR"):
-        return self.find_and_extract_value_from_matched_line(filename, "stopping-criterion for ELM")
-    
+        return self.find_and_extract_value_from_matched_line(
+            filename, "stopping-criterion for ELM"
+        )
+
     def get_max_electronic_steps(self, filename="OUTCAR"):
         return self.find_and_extract_value_from_matched_line(filename, "NELM")
-    
+
     def get_vasp_version(self, filename="OUTCAR", lines=None):
         return lines[0].lstrip().split(sep=" ")[0]
 
@@ -218,11 +231,11 @@ class Outcar(object):
             if match:
                 date_str, time_str = match.groups()
                 # Combining the date and time strings
-                datetime_str = date_str + ' ' + time_str
+                datetime_str = date_str + " " + time_str
                 # Converting to datetime object
-                datetime_obj = datetime.strptime(datetime_str, '%Y.%m.%d %H:%M:%S')
+                datetime_obj = datetime.strptime(datetime_str, "%Y.%m.%d %H:%M:%S")
                 return datetime_obj
-    
+
     def get_positions_and_forces(self, filename="OUTCAR", lines=None, n_atoms=None):
         """
         Gets the forces and positions for every ionic step from the OUTCAR file
@@ -253,7 +266,6 @@ class Outcar(object):
         )
 
     def get_positions(self, filename="OUTCAR", lines=None, n_atoms=None):
-
         """
         Gets the positions for every ionic step from the OUTCAR file
 
@@ -1187,12 +1199,14 @@ class Outcar(object):
                     [
                         np.hstack(
                             [
-                                float(lines[ind + i].split()[-1])
-                                if i != 7
-                                else [
-                                    float(lines[ind_lst[-1] + 7].split()[-2]),
-                                    float(lines[ind_lst[-1] + 7].split()[-1]),
-                                ]
+                                (
+                                    float(lines[ind + i].split()[-1])
+                                    if i != 7
+                                    else [
+                                        float(lines[ind_lst[-1] + 7].split()[-2]),
+                                        float(lines[ind_lst[-1] + 7].split()[-1]),
+                                    ]
+                                )
                                 for i in range(2, 12)
                             ]
                         )
@@ -1242,9 +1256,11 @@ def _split_indices(ind_ionic_lst, ind_elec_lst):
     """
     ind_elec_array = np.array(ind_elec_lst)
     return [
-        ind_elec_array[(ind_elec_array < j2) & (j1 < ind_elec_array)]
-        if j1 < j2
-        else ind_elec_array[(ind_elec_array < j2)]
+        (
+            ind_elec_array[(ind_elec_array < j2) & (j1 < ind_elec_array)]
+            if j1 < j2
+            else ind_elec_array[(ind_elec_array < j2)]
+        )
         for j1, j2 in zip(np.roll(ind_ionic_lst, 1), ind_ionic_lst)
     ]
 
