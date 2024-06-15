@@ -67,8 +67,15 @@ class CalculationConverger:
         dirs_to_apply_reconverge = set(non_converged or self.vasp_dirs) - set(
             running_queued_job_directories
         )
+        
+        # Split directories into those without vasp.log and those with vasp.log
+        dirs_without_log = [dir for dir in dirs_to_apply_reconverge if not os.path.exists(os.path.join(dir, "vasp.log"))]
+        dirs_with_log = [dir for dir in dirs_to_apply_reconverge if os.path.exists(os.path.join(dir, "vasp.log"))]
 
-        for i, dir in enumerate(dirs_to_apply_reconverge):
+        # Prioritize directories without vasp.log
+        dirs_to_check = dirs_without_log + dirs_with_log
+        
+        for i, dir in enumerate(dirs_to_check):
             if not check_convergence(dir):
                 if i + len(running_queued_job_directories) > self.max_submissions:
                     leftover_calcs_exceeding_queue_limit.append(dir)
