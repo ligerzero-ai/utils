@@ -805,6 +805,83 @@ class DatabaseGenerator:
         print(f"Updated dataframe saved to {output_path}")
         return df
 
+    def build_potential_database(
+        self,
+        target_directory=None,
+        extract_directories=False,
+        tarball_extensions=(".tar.gz", "tar.bz2"),
+        read_error_dirs=False,
+        read_multiple_runs_in_dir=False,
+        cleanup=False,
+        keep_filenames_after_cleanup=[],
+        keep_filename_patterns_after_cleanup=[],
+        max_dir_count=None,
+        filenames_to_qualify=[
+            "vasp.log",
+            "INCAR",
+            "POTCAR",
+            "CONTCAR",
+            "KPOINTS",
+            "OUTCAR",
+            "vasprun.xml",
+        ],
+        all_present=False,
+        df_filename=None,
+        df_compression=True,
+        incar_checks={},
+        energy_threshold=0.1  # eV/atom
+    ):
+
+        def drop_nan_structures_rows(df, column_name="structures"):
+            return df[~df[column_name].apply(lambda x: isinstance(x, list) and all(pd.isna(y) for y in x))].reset_index(drop=True)
+
+        def unfold_rows(df):
+            def unfold_row(row):
+                num_elements = len(row['structures'])
+                return [{col: (row[col][i] if isinstance(row[col], (list, np.ndarray)) and i < len(row[col]) else row[col]) for col in df.columns} for i in range(num_elements)]
+            return pd.DataFrame([item for sublist in df.apply(unfold_row, axis=1) for item in sublist])
+
+        def check_INCAR_params(df, check_pairs):
+            def _check_INCAR_param(incar):
+                return all(incar.get(key) == value for key, value in check_pairs.items()) if isinstance(incar, dict) else False
+            df['INCAR_ok'] = df['INCAR'].apply(_check_INCAR_param)
+            return df
+
+        def filter_close_values(group, threshold, column_name):
+            group = group.sort_values(by=column_name)
+            return group.loc[~group[column_name].diff().abs().lt(threshold).shift(-1).fillna(False)]
+
+        df = self.build_database(
+            target_directory=target_directory,
+            extract_directories=extract_directories,
+            tarball_extensions=tarball_extensions,
+            read_error_dirs=read_error_dirs,
+            read_multiple_runs_in_dir=read_multiple_runs_in_dir,
+            cleanup=cleanup,
+            keep_filenames_after_cleanup=keep_filenames_after_cleanup,
+            keep_filename_patterns_after_cleanup=keep_filename_patterns_after_cleanup,
+            max_dir_count=max_dir_count,
+            filenames_to_qualify=filenames_to_qualify,
+            all_present=all_present,
+            df_filename=df_filename,
+            df_compression=df_compression
+        )
+
+        df = drop_nan_structures_rows(df)
+        df = df[["job_name", "INCAR", "structures", "energy", "forces", "stresses", "magmoms"]]
+        df = unfold_rows(df)
+        df = check_INCAR_params(df, incar_checks)
+        df = df[(df["INCAR_ok"]) | (df['INCAR'].notnull())]
+        
+        # Ensure 'energy' column is numeric and handle NaNs
+        df['energy'] = pd.to_numeric(df['energy'], errors='coerce')
+        df = df.dropna(subset=['energy'])
+        df["structures"] = df.structures.apply(lambda x: Structure.from_str(x, fmt="json"))
+        df["n_atoms"] = df.structures.apply(lambda x: x.num_sites)
+        df["eV_atom"] = df.energy/df.n_atoms
+        df = df.groupby('job_name').apply(lambda group: filter_close_values(group, energy_threshold, "eV_atom")).reset_index(drop=True)
+
+        return df
     # def update_database(self,
     #                 new_calculation_directory,
     #                 existing_database_filename = "vasp_database.pkl",
@@ -863,8 +940,7 @@ def robust_append_last(clist, value):
     except (IndexError, TypeError):
         clist.append(np.nan)
     return clist
-
-
+    
 def create_summary(database_df):
     energies = []
     magmoms = []

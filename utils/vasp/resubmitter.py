@@ -4,7 +4,7 @@ import tarfile
 import subprocess
 import pandas as pd
 
-from vasp.database import find_vasp_directories, check_convergence
+from utils.vasp.database import find_vasp_directories, check_convergence
 from utils.generic import get_latest_file_iteration
 from utils.jobfile import jobfile
 
