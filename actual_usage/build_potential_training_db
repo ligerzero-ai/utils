@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <folder_path> [--extract] [--max_dir_count <value>] [--read_all_runs_in_dir] [--read_error_runs_in_dir]"
+    exit 1
+fi
+
+folder_path="$1"
+shift 1  # Remove the first argument (folder_path) from the list of arguments
+
+# Paths to the utils directory
+setonix_path="/home/hmai/utils/actual_usage"
+garching_path="/cmmc/u/hmai/personal_dev/utils/actual_usage"
+local_path="/root/personal_python_utilities/utils/actual_usage"
+
+# You can specify which path to use based on the environment or other conditions
+path_to_utils="$local_path"
+
+# Check if the --extract argument is provided
+extract_flag=""
+if [[ "$@" == *"--extract"* ]]; then
+    extract_flag="--extract"
+fi
+
+# Run the first Python script
+python "$path_to_utils/build_vasp_potential_training_db.py" "$folder_path" "$@"
+
+# Run the second Python script
+python "$path_to_utils/summarise_vasp_database.py" "$folder_path"

@@ -846,11 +846,26 @@ class DatabaseGenerator:
                 return all(incar.get(key) == value for key, value in check_pairs.items()) if isinstance(incar, dict) else False
             df['INCAR_ok'] = df['INCAR'].apply(_check_INCAR_param)
             return df
+        
+        def filter_by_ev_atom(df, column="eV_atom", threshold=0.1):
+            df_sorted = df.sort_values(by=column).reset_index(drop=True)
+            filtered_rows = []
 
-        def filter_close_values(group, threshold, column_name):
-            group = group.sort_values(by=column_name)
-            return group.loc[~group[column_name].diff().abs().lt(threshold).shift(-1).fillna(False)]
+            last_retained_value = None
+            for index, row in df_sorted.iterrows():
+                if last_retained_value is None or abs(row[column] - last_retained_value) > threshold:
+                    filtered_rows.append(row)
+                    last_retained_value = row[column]
+            
+            return pd.DataFrame(filtered_rows)
 
+        def apply_filter_to_groups(df, group_column="job_name", filter_column="eV_atom", threshold=0.1):
+            filtered_dfs = df.groupby(group_column).apply(
+                lambda group: filter_by_ev_atom(group, column=filter_column, threshold=threshold)
+            )
+            filtered_dfs = filtered_dfs.reset_index(drop=True)
+            return filtered_dfs
+        
         df = self.build_database(
             target_directory=target_directory,
             extract_directories=extract_directories,
@@ -873,13 +888,13 @@ class DatabaseGenerator:
         df = check_INCAR_params(df, incar_checks)
         df = df[(df["INCAR_ok"]) | (df['INCAR'].notnull())]
         
-        # Ensure 'energy' column is numeric and handle NaNs
         df['energy'] = pd.to_numeric(df['energy'], errors='coerce')
         df = df.dropna(subset=['energy'])
         df["structures"] = df.structures.apply(lambda x: Structure.from_str(x, fmt="json"))
         df["n_atoms"] = df.structures.apply(lambda x: x.num_sites)
         df["eV_atom"] = df.energy/df.n_atoms
-        df = df.groupby('job_name').apply(lambda group: filter_close_values(group, energy_threshold, "eV_atom")).reset_index(drop=True)
+
+        df = apply_filter_to_groups(df, group_column="job_name", filter_column="eV_atom", threshold=energy_threshold)
 
         return df
     # def update_database(self,
