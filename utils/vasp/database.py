@@ -829,9 +829,9 @@ class DatabaseGenerator:
         df_filename=None,
         df_compression=True,
         incar_checks={},
-        energy_threshold=0.1  # eV/atom
+        energy_threshold=0.1,  # eV/atom
+        use_ev_atom=True  # Toggle for using eV_atom or energy
     ):
-
         def drop_nan_structures_rows(df, column_name="structures"):
             return df[~df[column_name].apply(lambda x: isinstance(x, list) and all(pd.isna(y) for y in x))].reset_index(drop=True)
 
@@ -862,7 +862,7 @@ class DatabaseGenerator:
             df['INCAR_ok'] = df['INCAR'].apply(_check_INCAR_param)
             return df
         
-        def filter_by_ev_atom(df, column="eV_atom", threshold=0.1):
+        def filter_by_energy(df, column, threshold=0.1):
             df_sorted = df.sort_values(by=column).reset_index(drop=True)
             filtered_rows = []
 
@@ -876,11 +876,11 @@ class DatabaseGenerator:
 
         def apply_filter_to_groups(df, group_column="job_name", filter_column="eV_atom", threshold=0.1):
             filtered_dfs = df.groupby(group_column).apply(
-                lambda group: filter_by_ev_atom(group, column=filter_column, threshold=threshold)
+                lambda group: filter_by_energy(group, column=filter_column, threshold=threshold)
             )
             filtered_dfs = filtered_dfs.reset_index(drop=True)
             return filtered_dfs
-        
+
         df = self.build_database(
             target_directory=target_directory,
             extract_directories=extract_directories,
@@ -907,10 +907,12 @@ class DatabaseGenerator:
         df = df.dropna(subset=['energy'])
         df["structures"] = df.structures.apply(lambda x: Structure.from_str(x, fmt="json"))
         df["n_atoms"] = df.structures.apply(lambda x: x.num_sites)
-        df["eV_atom"] = df.energy/df.n_atoms
-
-        df = apply_filter_to_groups(df, group_column="job_name", filter_column="eV_atom", threshold=energy_threshold)
-
+        df["eV_atom"] = df.energy / df.n_atoms
+        
+        df = df[df["INCAR_ok"] == True]
+        filter_column = "eV_atom" if use_ev_atom else "energy"
+        df = apply_filter_to_groups(df, group_column="job_name", filter_column=filter_column, threshold=energy_threshold)
+        
         return df
     # def update_database(self,
     #                 new_calculation_directory,
@@ -950,7 +952,6 @@ class DatabaseGenerator:
     #     base_df.drop(columns=['job_dir'], inplace=True)
 
     #     return base_df
-
 
 def update_database(df_base, df_update):
     # Get the unique job names from df2

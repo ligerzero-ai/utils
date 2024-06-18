@@ -3,7 +3,6 @@ import argparse
 import warnings
 from multiprocessing import cpu_count
 
-
 def main():
     warnings.filterwarnings("ignore")
 
@@ -36,6 +35,11 @@ def main():
         default=True,
         help="Read directories with errors",
     )
+    parser.add_argument(
+        "--use_total_energy_over_eVatom",
+        action="store_true",
+        help="Use total energy for filtering instead of eV/atom",
+    )
     args = parser.parse_args()
 
     datagen = DatabaseGenerator(args.directory, max_workers=cpu_count())
@@ -45,25 +49,29 @@ def main():
         max_dir_count = args.max_dir_count
     else:
         max_dir_count = 2000  # Default value
-        
-    df = datagen.build_potential_database(extract_directories=args.extract,
-                                read_multiple_runs_in_dir=args.read_all_runs_in_dir,
-                                read_error_dirs=args.read_error_runs_in_dir,
-                                max_dir_count=max_dir_count,
-                                tarball_extensions=(".tar.gz", ".tar.bz2"),
-                                cleanup=False,
-                                keep_filenames_after_cleanup=[],
-                                keep_filename_patterns_after_cleanup=[],
-                                filenames_to_qualify=["OUTCAR"],#, "vasprun.xml"],
-                                all_present=True,
-                                df_filename=None,
-                                df_compression=True,
-                                incar_checks={"ENCUT": 400,
-                                              "LREAL": "Auto"
-                                              },
-                                energy_threshold=0.2
-                                )
-    df.to_pickle("potential_training_df.pkl.gz",
-                 compression="gzip")
+
+    df = datagen.build_potential_database(
+        extract_directories=args.extract,
+        read_multiple_runs_in_dir=args.read_all_runs_in_dir,
+        read_error_dirs=args.read_error_runs_in_dir,
+        max_dir_count=max_dir_count,
+        tarball_extensions=(".tar.gz", ".tar.bz2"),
+        cleanup=False,
+        keep_filenames_after_cleanup=[],
+        keep_filename_patterns_after_cleanup=[],
+        filenames_to_qualify=["OUTCAR"],  # "vasprun.xml"],
+        all_present=True,
+        df_filename=None,
+        df_compression=True,
+        incar_checks={
+            "ENCUT": 400,
+            "LREAL": "Auto"
+        },
+        energy_threshold=0.1,
+        use_ev_atom=not args.use_total_energy_over_eVatom  # Toggle based on the argument
+    )
+
+    df.to_pickle("potential_training_df.pkl.gz", compression="gzip")
+
 if __name__ == "__main__":
     main()
