@@ -27,13 +27,13 @@ def main():
     parser.add_argument(
         "--read_all_runs_in_dir",
         action="store_true",
-        default=False,
+        default=True,
         help="Read all runs in directory",
     )
     parser.add_argument(
         "--read_error_runs_in_dir",
         action="store_true",
-        default=False,
+        default=True,
         help="Read directories with errors",
     )
     args = parser.parse_args()
