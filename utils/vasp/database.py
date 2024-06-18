@@ -837,9 +837,24 @@ class DatabaseGenerator:
 
         def unfold_rows(df):
             def unfold_row(row):
+                # Check if row['structures'] is a list or ndarray
+                if not isinstance(row['structures'], (list, np.ndarray)):
+                    print(f"Warning: row['structures'] is of type {type(row['structures'])} and value {row['structures']}, skipping this row.")
+                    return []
+
                 num_elements = len(row['structures'])
-                return [{col: (row[col][i] if isinstance(row[col], (list, np.ndarray)) and i < len(row[col]) else row[col]) for col in df.columns} for i in range(num_elements)]
-            return pd.DataFrame([item for sublist in df.apply(unfold_row, axis=1) for item in sublist])
+                return [
+                    {
+                        col: (row[col][i] if isinstance(row[col], (list, np.ndarray)) and i < len(row[col]) else row[col])
+                        for col in df.columns
+                    }
+                    for i in range(num_elements)
+                ]
+
+            unfolded_list = [item for sublist in df.apply(unfold_row, axis=1) for item in sublist]
+            
+            # Return the dataframe if unfolded_list is not empty, else an empty dataframe with the same columns
+            return pd.DataFrame(unfolded_list) if unfolded_list else pd.DataFrame(columns=df.columns)
 
         def check_INCAR_params(df, check_pairs):
             def _check_INCAR_param(incar):
