@@ -33,7 +33,7 @@ jobs = [
                         "LAECHG": True,
                         "LCHARGE": True,
                         "NELM": 500,
-                        "ALGO": "VeryFast",
+                        "ALGO": "Normal",
                         "EDIFF": 1e-5,
                     }
                 },

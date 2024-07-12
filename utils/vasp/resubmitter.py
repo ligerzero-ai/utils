@@ -7,7 +7,7 @@ import pandas as pd
 from utils.vasp.database import find_vasp_directories, check_convergence
 from utils.generic import get_latest_file_iteration
 from utils.jobfile import jobfile
-
+from tqdm import tqdm
 
 def get_slurm_jobs_working_directories(username="hmai"):
     command = f'squeue -u {username} -o "%i %Z"'
@@ -262,7 +262,7 @@ class CalculationConverger:
         )
         script_name = os.path.join(
             self.script_template_dir,
-            f"{template_filename.split('_')[0]}_Custodian_{HPC}.sh",
+            f"{template_filename.split('_')[1].split('.py')[0]}_Custodian_{HPC}.sh"}_Custodian_{HPC}.sh",
         )
         job = jobfile(
             file_path=script_name,
