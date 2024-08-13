@@ -27,9 +27,9 @@ handlers = [VaspErrorHandler(output_filename=output_filename), UnconvergedErrorH
 jobs = [VaspJob(sys.argv[1:], output_file=output_filename, suffix = "",
                 settings_override = [{"dict": "INCAR", "action": {"_set": {"NSW": 1, "LAECHG": True, "LCHARGE": True, "NELM": 500, "EDIFF": 1E-5}}}])]
 c = Custodian(handlers, jobs, max_errors=10)
-c.run()' > StaticImage-DDEC6-custodian.py
+c.run()' > custodian.py
 
-python StaticImage-DDEC6-custodian.py $run_cmd vasp_std &> vasp.log
+python custodian.py $run_cmd vasp_std &> vasp.log
 
 echo '<net charge>
 0.0 <-- specifies the net charge of the unit cell (defaults to 0.0 if nothing specified)

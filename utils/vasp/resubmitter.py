@@ -3,11 +3,12 @@ import shutil
 import tarfile
 import subprocess
 import pandas as pd
+from tqdm import tqdm
+import glob
 
 from utils.vasp.database import find_vasp_directories, check_convergence
 from utils.generic import get_latest_file_iteration
 from utils.jobfile import jobfile
-from tqdm import tqdm
 
 def get_slurm_jobs_working_directories(username="hmai"):
     command = f'squeue -u {username} -o "%i %Z"'
@@ -75,7 +76,7 @@ class CalculationConverger:
         # Prioritize directories without vasp.log
         dirs_to_check = dirs_without_log + dirs_with_log
         
-        for i, dir in enumerate(dirs_to_check):
+        for i, dir in enumerate(tqdm(dirs_to_check, desc="Reconverging Directories")):
             if not check_convergence(dir):
                 if i + len(running_queued_job_directories) > self.max_submissions:
                     leftover_calcs_exceeding_queue_limit.append(dir)
@@ -84,8 +85,6 @@ class CalculationConverger:
                         dir, calc_type, HPC, VASP_version, CPU, walltime, cpu_per_node
                     )
                     dirs_to_search_next_time.append(dir)
-            else:
-                print(f"CONVERGED: {dir}")
 
         self.update_resubmit_log(
             dirs_to_search_next_time
@@ -95,16 +94,19 @@ class CalculationConverger:
         return dirs_to_search_next_time
 
     def load_non_converged_paths(self, from_dataframe_path):
-        if from_dataframe_path:
-            df = pd.read_pickle(from_dataframe_path)
-            return [
-                (
-                    path.rstrip(os.sep + "OUTCAR")
-                    if path.endswith(os.sep + "OUTCAR")
-                    else path
-                )
-                for path in df["filepath"].tolist()
-            ]
+        if from_dataframe_path is not None:
+            try:
+                df = pd.read_pickle(from_dataframe_path)
+                return [
+                    (
+                        path.rstrip(os.sep + "OUTCAR")
+                        if path.endswith(os.sep + "OUTCAR")
+                        else path
+                    )
+                    for path in df["filepath"].tolist()
+                ]
+            except Exception as e:
+                print(f"Failed to read dataframe: {from_dataframe_path} with exception {e}")
         return self.reconverge_from_log_file()
 
     def update_resubmit_log(self, dirs_to_search_next_time):
@@ -122,6 +124,9 @@ class CalculationConverger:
         walltime=24,
         cpu_per_node=128,
     ):
+        if glob.fnmatch.fnmatch(os.path.basename(dirpath), 'error_run*'):
+            #print(f"Skipping {dirpath} as it contains an error_run folder")
+            return
         self.handle_error_run_files(dirpath)
         reconverge_methods = {
             "static": self.reconverge_static,
@@ -133,17 +138,21 @@ class CalculationConverger:
         reconverge_method(dirpath, HPC, VASP_version, CPU, walltime, cpu_per_node)
 
     def handle_error_run_files(self, dirpath):
-        error_tar_files_exist = any(
-            "error" in f and "tar" in f for f in os.listdir(dirpath)
-        )
-        if error_tar_files_exist:
+        error_tar_files_exist = any("error" in f and "tar" in f for f in os.listdir(dirpath))
+        
+        # Check if "vasprun.xml" or "OUTCAR" files exist
+        vasp_files_exist = any(f in ["vasprun.xml", "OUTCAR"] for f in os.listdir(dirpath))
+        
+        if error_tar_files_exist or vasp_files_exist:
+            # If error tar files exist, find the latest error run index
             latest_error_run_index = self.find_latest_error_run_index(dirpath)
+            
             error_run_folder_path = os.path.join(
                 dirpath, f"error_run_{latest_error_run_index + 1}"
             )
-            os.makedirs(error_run_folder_path)
+            os.makedirs(error_run_folder_path, exist_ok=True)
             self.move_files_to_error_run_folder(dirpath, error_run_folder_path)
-
+            
     def move_files_to_error_run_folder(self, dirpath, error_run_folder_path):
         for f in os.listdir(dirpath):
             if ("error" in f and "tar" in f) or f.endswith(".sh"):
@@ -262,7 +271,7 @@ class CalculationConverger:
         )
         script_name = os.path.join(
             self.script_template_dir,
-            f"{template_filename.split('_')[1].split('.py')[0]}_Custodian_{HPC}.sh"}_Custodian_{HPC}.sh",
+            f"{template_filename.split('_')[1].split('.py')[0]}_Custodian_{HPC}.sh"
         )
         job = jobfile(
             file_path=script_name,
