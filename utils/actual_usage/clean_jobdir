@@ -1,0 +1,1 @@
+find . -type f \( -name CHG -o -name CHGCAR* -o -name AECCAR* -o -name WAVECAR* -o -name *.swp* -o -name OUTCAR-* -o -name *core* \) -delete
