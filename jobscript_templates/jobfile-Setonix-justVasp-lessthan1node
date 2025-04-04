@@ -1,0 +1,21 @@
+#!/bin/bash -l
+##SBATCH --nodes={NODESTRING}
+#SBATCH --ntasks={CPUSTRING}
+#SBATCH --ntasks-per-node={CPUSTRING}
+#SBATCH --cpus-per-task=1
+#SBATCH --account=pawsey0380
+#SBATCH --job-name={CASESTRING}
+#SBATCH --time={WALLTIMESTRING}
+#SBATCH --partition=work
+#SBATCH --export=NONE
+##SBATCH --exclusive
+
+module load vasp/5.4.4
+cd "$PBS_O_WORKDIR"
+
+ulimit -s unlimited
+run_cmd="srun --export=ALL -N 1 -n {CPUSTRING}"
+
+source /scratch/pawsey0380/hmai/mambaforge/bin/activate pymatgen
+
+$run_cmd vasp_std

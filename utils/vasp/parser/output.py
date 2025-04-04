@@ -369,44 +369,109 @@ def element_count_ordered(structure):
             past_element = element
     element_count.append(count)
     return element_list, element_count
-
-
-def parse_vasp_directory(directory, extract_error_dirs=True, parse_all_in_dir=True):
-    df = get_vasp_outputs(
-        directory,
-        extract_error_dirs=extract_error_dirs,
-        parse_all_in_dir=parse_all_in_dir,
-    )
-    results_df = []
-    kpoints_list = []
-    for _, row in df.iterrows():
-        results_df.append(process_outcar(row.OUTCAR, row.POSCAR))
-        kpoints_list.append(_get_KPOINTS_info(row.KPOINTS, row.INCAR))
-
-    results_df = pd.concat(results_df).sort_values(by="calc_start_time")
-    results_df["KPOINTS"] = kpoints_list
-    results_df["INCAR"] = df["INCAR"].tolist()
-
-    try:
-        element_list, element_count, electron_of_potcar = grab_electron_info(
-            directory_path=directory, potcar_filename="POTCAR"
+import concurrent.futures
+def parse_vasp_directory(directory, extract_error_dirs=True, parse_all_in_dir=True, timeout=60):
+    print(directory)
+    def process_vasp_files():
+        df = get_vasp_outputs(
+            directory,
+            extract_error_dirs=extract_error_dirs,
+            parse_all_in_dir=parse_all_in_dir,
         )
-    except:
-        element_list = np.nan
-        element_count = np.nan
-        electron_of_potcar = np.nan
+        results_df = []
+        kpoints_list = []
+        for _, row in df.iterrows():
+            results_df.append(process_outcar(row.OUTCAR, row.POSCAR))
+            kpoints_list.append(_get_KPOINTS_info(row.KPOINTS, row.INCAR))
 
-    try:
-        electron_count = get_total_electron_count(directory_path=directory)
-    except Exception as e:
-        print(e)
-        electron_count = np.nan
+        results_df = pd.concat(results_df).sort_values(by="calc_start_time")
+        results_df["KPOINTS"] = kpoints_list
+        results_df["INCAR"] = df["INCAR"].tolist()
 
-    results_df["element_list"] = [element_list] * len(results_df)
-    results_df["element_count"] = [element_count] * len(results_df)
-    results_df["electron_count"] = [electron_count] * len(results_df)
-    results_df["potcar_electron_count"] = [electron_of_potcar] * len(results_df)
-    results_df["job_name"] = [os.path.basename(directory)] * len(results_df)
-    results_df["filepath"] = [directory] * len(results_df)
-    results_df["convergence"] = [check_convergence(directory)] * len(results_df)
+        try:
+            element_list, element_count, electron_of_potcar = grab_electron_info(
+                directory_path=directory, potcar_filename="POTCAR"
+            )
+        except:
+            element_list = np.nan
+            element_count = np.nan
+            electron_of_potcar = np.nan
+
+        try:
+            electron_count = get_total_electron_count(directory_path=directory)
+        except Exception as e:
+            print(e)
+            electron_count = np.nan
+
+        results_df["element_list"] = [element_list] * len(results_df)
+        results_df["element_count"] = [element_count] * len(results_df)
+        results_df["electron_count"] = [electron_count] * len(results_df)
+        results_df["potcar_electron_count"] = [electron_of_potcar] * len(results_df)
+        results_df["job_name"] = [os.path.basename(directory)] * len(results_df)
+        results_df["filepath"] = [directory] * len(results_df)
+        results_df["convergence"] = [check_convergence(directory)] * len(results_df)
+
+        return results_df
+
+    # Using a thread to run the process with a timeout
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(process_vasp_files)
+        try:
+            # Attempt to get the result within the specified timeout
+            results_df = future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            print(f"Processing {directory} took longer than {timeout} seconds. Returning NaN values.")
+            # If the processing times out, create an empty DataFrame with NaN values
+            results_df = pd.DataFrame({
+                "calc_start_time": [np.nan],
+                "KPOINTS": [np.nan],
+                "INCAR": [np.nan],
+                "element_list": [np.nan],
+                "element_count": [np.nan],
+                "electron_count": [np.nan],
+                "potcar_electron_count": [np.nan],
+                "job_name": [os.path.basename(directory)],
+                "filepath": [directory],
+                "convergence": [np.nan],
+            })
+    
     return results_df
+# def parse_vasp_directory(directory, extract_error_dirs=True, parse_all_in_dir=True):
+#     df = get_vasp_outputs(
+#         directory,
+#         extract_error_dirs=extract_error_dirs,
+#         parse_all_in_dir=parse_all_in_dir,
+#     )
+#     results_df = []
+#     kpoints_list = []
+#     for _, row in df.iterrows():
+#         results_df.append(process_outcar(row.OUTCAR, row.POSCAR))
+#         kpoints_list.append(_get_KPOINTS_info(row.KPOINTS, row.INCAR))
+
+#     results_df = pd.concat(results_df).sort_values(by="calc_start_time")
+#     results_df["KPOINTS"] = kpoints_list
+#     results_df["INCAR"] = df["INCAR"].tolist()
+
+#     try:
+#         element_list, element_count, electron_of_potcar = grab_electron_info(
+#             directory_path=directory, potcar_filename="POTCAR"
+#         )
+#     except:
+#         element_list = np.nan
+#         element_count = np.nan
+#         electron_of_potcar = np.nan
+
+#     try:
+#         electron_count = get_total_electron_count(directory_path=directory)
+#     except Exception as e:
+#         print(e)
+#         electron_count = np.nan
+
+#     results_df["element_list"] = [element_list] * len(results_df)
+#     results_df["element_count"] = [element_count] * len(results_df)
+#     results_df["electron_count"] = [electron_count] * len(results_df)
+#     results_df["potcar_electron_count"] = [electron_of_potcar] * len(results_df)
+#     results_df["job_name"] = [os.path.basename(directory)] * len(results_df)
+#     results_df["filepath"] = [directory] * len(results_df)
+#     results_df["convergence"] = [check_convergence(directory)] * len(results_df)
+#     return results_df

@@ -59,7 +59,7 @@ def main():
         filenames_to_qualify=["OUTCAR"],  # , "vasprun.xml"],
         all_present=True,
         df_filename=None,
-        df_compression=True,
+        df_compression=False,
     )
 
 

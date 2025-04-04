@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Check if the SLURM_JOB_ID argument is provided
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <SLURM_JOB_ID>"
+    exit 1
+fi
+
+# Store the SLURM_JOB_ID from the argument
+SLURM_JOB_ID=$1
+
+# Get the job's working directory
+JOB_DIR=$(scontrol show job $SLURM_JOB_ID | grep "WorkDir" | awk -F'=' '{print $2}' | tr -d ' ')
+
+# Check if the job directory exists
+if [ -z "$JOB_DIR" ]; then
+    echo "Error: Job directory not found for SLURM_JOB_ID $SLURM_JOB_ID."
+    exit 1
+fi
+
+# Change the current working directory to the job's directory
+cd "$JOB_DIR"
+
+# Print the new working directory
+echo "Changed working directory to: $PWD"
+

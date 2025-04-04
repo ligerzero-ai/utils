@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Set the default number of users to 10
+num_users="${1:-10}"
+
+# Your command
+ps -eo user,rss --no-headers | awk '{sum[$1] += $2} END { for (i in sum) print i, sum[i]/1024/1024 }' | sort -k2 -n -r | head -n "$num_users"

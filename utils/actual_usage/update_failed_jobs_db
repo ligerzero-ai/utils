@@ -1,0 +1,26 @@
+#!/bin/bash
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <folder_path> [--max_dir_count <value> --read_all_runs_in_dir --read_error_runs_in_dir]"
+    exit 1
+fi
+
+folder_path="$1"
+shift 1  # Remove the first argument (folder_path) from the list of arguments
+
+# Define the paths based on your setup
+setonix_path="/home/hmai/utils/actual_usage"
+garching_path="/cmmc/u/hmai/personal_dev/utils/actual_usage"
+laptop_path="/root/personal_python_utilities/utils/actual_usage"
+
+# Determine which path to use
+# Uncomment the appropriate line based on your setup
+path_to_utils="$setonix_path"
+# path_to_utils="$garching_path"
+# path_to_utils="$laptop_path"
+
+# Run the first Python script
+python "$path_to_utils/update_vasp_db.py" "$folder_path" "$@"
+
+# Run the second Python script
+python "$path_to_utils/summarise_vasp_database.py" "$folder_path"

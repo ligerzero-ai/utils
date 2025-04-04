@@ -170,11 +170,11 @@ class DatabaseGenerator:
 
         if target_directory:
             dirs = find_chargemol_directories(
-                parent_dir=target_directory, extract_tarballs=extract_directories
+                parent_dir=target_directory, extract_tarballs=extract_directories, all_present=False
             )
         else:
             dirs = find_chargemol_directories(
-                parent_dir=self.parent_dir, extract_tarballs=extract_directories
+                parent_dir=self.parent_dir, extract_tarballs=extract_directories, all_present=False
             )
 
         print(
@@ -322,8 +322,8 @@ def find_chargemol_directories(
         "DDEC_atomic_Rsquared_moments.xyz",
         "POTCAR",
     ],
-    all_present=True,
-    extract_tarballs=True,
+    all_present=False,
+    extract_tarballs=False,
     only_valid_output=True,
 ):
     if extract_tarballs:
@@ -334,19 +334,21 @@ def find_chargemol_directories(
             suffix=None,
             prefix=None,
         )
-
+    
     directories = gen_tools.find_directories_with_files(
         parent_dir=parent_dir, filenames=filenames, all_present=all_present
     )
-
+    
     if only_valid_output:
         converged_list = []
         non_converged_list = []
         for dir in directories:
-            file = os.path.join(os.path.dirname(dir), "VASP_DDEC_analysis.output")
+            file = os.path.join(dir, "VASP_DDEC_analysis.output")
+            print(file)
             if check_valid_chargemol_output(file):
                 converged_list.append(dir)
             else:
+                print(f"check output for {dir} failed!")
                 non_converged_list.append(dir)
         directories = converged_list
     return directories

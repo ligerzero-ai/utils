@@ -11,10 +11,10 @@ shift 1  # Remove the first argument (folder_path) from the list of arguments
 # Paths to the utils directory
 setonix_path="/home/hmai/utils/actual_usage"
 garching_path="/cmmc/u/hmai/personal_dev/utils/actual_usage"
-local_path="/root/personal_python_utilities/utils/actual_usage"
+#local_path="/root/personal_python_utilities/utils/actual_usage"
 
 # You can specify which path to use based on the environment or other conditions
-path_to_utils="$local_path"
+path_to_utils="$garching_path"
 
 # Check if the --extract argument is provided
 extract_flag=""

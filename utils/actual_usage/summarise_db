@@ -1,0 +1,2 @@
+python ~/personal_dev/utils/actual_usage/summarise_vasp_database.py .
+#python /root/personal_python_utilities/utils/actual_usage/summarise_vasp_database.py .

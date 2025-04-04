@@ -3,6 +3,7 @@ import shutil
 import tarfile
 import subprocess
 import pandas as pd
+import filecmp
 
 from utils.vasp.database import find_vasp_directories, check_convergence
 from utils.generic import get_latest_file_iteration
@@ -67,7 +68,9 @@ class CalculationConverger:
         dirs_to_apply_reconverge = set(non_converged or self.vasp_dirs) - set(
             running_queued_job_directories
         )
-        
+        dirs_to_apply_reconverge = {
+            dir for dir in dirs_to_apply_reconverge if "error_run" not in os.path.basename(dir)
+        }
         # Split directories into those without vasp.log and those with vasp.log
         dirs_without_log = [dir for dir in dirs_to_apply_reconverge if not os.path.exists(os.path.join(dir, "vasp.log"))]
         dirs_with_log = [dir for dir in dirs_to_apply_reconverge if os.path.exists(os.path.join(dir, "vasp.log"))]
@@ -84,6 +87,7 @@ class CalculationConverger:
                         dir, calc_type, HPC, VASP_version, CPU, walltime, cpu_per_node
                     )
                     dirs_to_search_next_time.append(dir)
+                    print(f"RERUNNING: {dir}")
             else:
                 print(f"CONVERGED: {dir}")
 
@@ -132,16 +136,32 @@ class CalculationConverger:
         reconverge_method = reconverge_methods.get(calc_type, self.reconverge_base)
         reconverge_method(dirpath, HPC, VASP_version, CPU, walltime, cpu_per_node)
 
-    def handle_error_run_files(self, dirpath):
-        error_tar_files_exist = any(
-            "error" in f and "tar" in f for f in os.listdir(dirpath)
-        )
-        if error_tar_files_exist:
+    def handle_error_run_files(self, dirpath, filename_to_compare="vasp.log"):
+        error_tar_files_exist = any("error" in f and "tar" in f for f in os.listdir(dirpath))
+        
+        # Check if "vasprun.xml" or "OUTCAR" files exist
+        vasp_files_exist = any(f in ["vasprun.xml", "OUTCAR"] for f in os.listdir(dirpath))
+        
+        if error_tar_files_exist or vasp_files_exist:
+            # If error tar files exist, find the latest error run index
             latest_error_run_index = self.find_latest_error_run_index(dirpath)
+            
+            # Check if there is a previous error folder
+            if latest_error_run_index > 0:
+                previous_error_folder_path = os.path.join(dirpath, f"error_run_{latest_error_run_index}")
+                current_vasp_log_path = os.path.join(dirpath, filename_to_compare)
+                previous_vasp_log_path = os.path.join(previous_error_folder_path, filename_to_compare)
+                
+                # Compare vasp.log files
+                if os.path.exists(current_vasp_log_path) and os.path.exists(previous_vasp_log_path):
+                    if filecmp.cmp(current_vasp_log_path, previous_vasp_log_path, shallow=False):
+                        # If the vasp.log files are identical, skip the rest
+                        return
+            
             error_run_folder_path = os.path.join(
                 dirpath, f"error_run_{latest_error_run_index + 1}"
             )
-            os.makedirs(error_run_folder_path)
+            os.makedirs(error_run_folder_path, exist_ok=True)
             self.move_files_to_error_run_folder(dirpath, error_run_folder_path)
 
     def move_files_to_error_run_folder(self, dirpath, error_run_folder_path):
@@ -260,9 +280,10 @@ class CalculationConverger:
         custodian_string = self.generate_custodian_string(
             template_filename, user_inputs
         )
+        template_type = template_filename.split('_')[1].split('.py')[0]
         script_name = os.path.join(
             self.script_template_dir,
-            f"{template_filename.split('_')[1].split('.py')[0]}_Custodian_{HPC}.sh"}_Custodian_{HPC}.sh",
+            f"{template_type}_Custodian_{HPC}.sh",
         )
         job = jobfile(
             file_path=script_name,
