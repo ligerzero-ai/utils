@@ -5,6 +5,7 @@ import subprocess
 import pandas as pd
 from tqdm import tqdm
 import glob
+import filecmp
 
 from utils.vasp.database import find_vasp_directories, check_convergence
 from utils.generic import get_latest_file_iteration
