@@ -6,8 +6,8 @@
 #SBATCH --time={WALLTIMESTRING}
 #SBATCH --partition=work
 #SBATCH --export=NONE
-#SBATCH --exclusive
-
+##SBATCH --exclusive
+#SBATCH --mem=32GB
 module load vasp/5.4.4
 cd "$PBS_O_WORKDIR"
 
