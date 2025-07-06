@@ -65,7 +65,22 @@ def check_chargemol_output_present(
         return False
     else:
         return True  # All required files are present
-
+    
+def get_cleavage_planes(struct, axis, tolerance):
+    """
+    Get the cleavage planes for a given structure and axis.
+    Parameters:
+    struct (Structure): A pymatgen Structure object.
+    axis (int): The axis to project the structure on.
+    tolerance (float): The tolerance for the unique values in the nth value. (Cartesian length)
+    Returns:
+    list: A list of cleavage planes.
+    """
+    atomic_layers = get_unique_values_in_nth_value(
+        struct.cart_coords, axis, tolerance=tolerance
+    )
+    cp_list = compute_average_pairs(atomic_layers)
+    return cp_list
 
 def summarise_DDEC_data(directory, bond_order_threshold=0.05):
     if not check_chargemol_output_present(directory):
@@ -277,7 +292,9 @@ class ChargemolAnalysis:
         return get_ANSBO_all_cleavage_planes(
             self.struct, self.bond_matrix, axis=axis, tolerance=tolerance
         )
-
+    def get_cleavage_planes(self, axis=2, tolerance=0.1):
+        return get_cleavage_planes(self.struct, axis, tolerance)
+    
     def get_min_ANSBO(self, axis=2, tolerance=0.1):
         return min(
             get_ANSBO_all_cleavage_planes(
@@ -297,7 +314,7 @@ def analyse_ANSBO(directory, axis=2, tolerance=0.1):
     atomic_layers = get_unique_values_in_nth_value(
         struct.cart_coords, axis, tolerance=tolerance
     )
-    cp_list = compute_average_pairs(atomic_layers)
+    cp_list = get_cleavage_planes(struct, axis, tolerance)
     ANSBO_profile = get_ANSBO_all_cleavage_planes(
         struct, bond_matrix, axis=axis, tolerance=tolerance
     )
@@ -509,7 +526,7 @@ def plot_structure_projection(
     atom_size=250,
     figsize=(8, 6),
     cell_border_colour="r",
-    atom_colour_dict={},
+    atom_colour_dict=None,
     fontsize=16,
 ):
     """
@@ -530,9 +547,12 @@ def plot_structure_projection(
     # plt.figure(figsize=figsize)
     for site in structure:
         species = site.species_string
-        color = atom_colour_dict.get(
-            species, "b"
-        )  # Default to blue if species not in atom_colour_dict
+        if atom_colour_dict is not None:
+            color = atom_colour_dict.get(
+                species, "b"
+            )  # Default to blue if species not in atom_colour_dict
+        else:
+            color = "b"
         plt.scatter(
             site.coords[projection_axis[0]],
             site.coords[projection_axis[1]],
@@ -660,15 +680,11 @@ def get_ANSBO(structure, bond_matrix, cleavage_plane, axis=2):
 
 
 def get_ANSBO_all_cleavage_planes(structure, bond_matrix, axis=2, tolerance=0.1):
-    atomic_layers = get_unique_values_in_nth_value(
-        structure.cart_coords, axis, tolerance=tolerance
-    )
-    cp_list = compute_average_pairs(atomic_layers)
-
+    cp_list = get_cleavage_planes(structure, axis, tolerance)
     ANSBO_profile = []
     for cp in cp_list:
         ANSBO_profile.append(get_ANSBO(structure, bond_matrix, cp))
-    return cp_list, ANSBO_profile
+    return ANSBO_profile
 
 
 def plot_ANSBO_profile(structure, bond_matrix, projection_axis=[1, 2]):
@@ -678,7 +694,6 @@ def plot_ANSBO_profile(structure, bond_matrix, projection_axis=[1, 2]):
     atomic_layer_coords = get_unique_values_in_nth_value(
         structure.cart_coords, projection_axis[-1], tolerance=0.1
     )
-
     if len(atomic_layer_coords) != len(ANSBO_values) + 1:
         print("Error: Lengths of the lists are not compatible.")
         return
@@ -709,7 +724,7 @@ def plot_ANSBO_profile(structure, bond_matrix, projection_axis=[1, 2]):
 
 
 def plot_ANSBO_profile_and_structure(
-    structure, bond_matrix, write=False, filename="ANSBO.jpg", fontsize=16
+    structure, bond_matrix, write=False, filename="ANSBO.jpg", fontsize=16, atom_colour_dict=None
 ):
     """
     Plot the structure bond projection and the ANSBO profile side by side.
@@ -735,7 +750,7 @@ def plot_ANSBO_profile_and_structure(
         structure,
         bond_matrix=bond_matrix,
         figsize=(8, 6),
-        atom_colour_dict={"Fe": "b", "Ac": "r"},
+        atom_colour_dict=atom_colour_dict,
     )
     plt.grid(True, which="major", linestyle="-")
     plt.grid(True, which="minor", linestyle="--")
@@ -773,3 +788,170 @@ def plot_ANSBO_profile_and_structure_from_dir(directory, extract_from_tarball=Tr
         os.path.join(directory, "VASP_DDEC_analysis.output")
     )
     plot_ANSBO_profile_and_structure(structure, bond_matrix)
+    
+def get_min_max_coords(structure, axis=2, use_fractional=False):
+    """
+    Return the minimum and maximum coordinates of all sites along a specified axis.
+
+    Parameters
+    ----------
+    structure : pymatgen.core.Structure
+        The structure to analyze.
+    axis : int, default=2
+        Coordinate axis: 0 → x/a, 1 → y/b, 2 → z/c.
+    use_fractional : bool, default=False
+        If True, compute extrema on fractional coordinates; otherwise use Cartesian.
+
+    Returns
+    -------
+    (min_coord, max_coord) : tuple of floats
+        The minimum and maximum coordinate values along the chosen axis.
+    """
+    # Choose coordinate array
+    if use_fractional:
+        coords = structure.frac_coords
+    else:
+        coords = structure.cart_coords
+
+    # Extract the axis values
+    axis_vals = coords[:, axis]
+
+    # Compute extrema
+    min_val = float(axis_vals.min())
+    max_val = float(axis_vals.max())
+    return min_val, max_val
+
+def find_extreme_cleavages(
+    structure,
+    bond_matrix,
+    cleavage_planes,
+    base_ele="Fe",
+    axis=2,
+    distance_threshold=4.0,
+    away_from_surface_tolerance=3.0,
+    use_fractional=False
+):
+    """
+    Loops over cleavage_planes but only considers those within ±distance_threshold
+    of any non-base_ele site along given axis and within the cell boundaries
+    offset by boundary_tolerance. Computes the distribution df and extracts mean
+    and max final_bond_order for each valid plane.
+
+    Parameters
+    ----------
+    structure : Structure
+        Pymatgen structure.
+    bond_matrix : DataFrame
+        Bond data matrix.
+    cleavage_planes : iterable of float
+        Candidate plane positions along the axis.
+    base_ele : str, default="Fe"
+        Element symbol to exclude when testing proximity.
+    axis : int, default=2
+        Axis index (0=a,1=b,2=c).
+    distance_threshold : float, default=4.0
+        Max distance from non-base_ele site to plane to consider.
+    boundary_tolerance : float, default=0.0
+        Distance from global min/max along axis to exclude near-boundary planes.
+    use_fractional : bool, default=False
+        Whether to compute global boundaries in fractional coords.
+
+    Returns
+    -------
+    (min_max_bo, plane_min_max), (min_mean_bo, plane_min_mean), df_at_plane_min_max
+    """
+    # Compute global boundaries with optional fractional coords
+    min_bound, max_bound = get_min_max_coords(
+        structure, axis=axis, use_fractional=use_fractional
+    )
+    # Adjust by boundary_tolerance
+    low_limit = min_bound + away_from_surface_tolerance
+    high_limit = max_bound - away_from_surface_tolerance
+    
+    # Precompute non-base_ele positions along axis (Cartesian)
+    non_idx = [i for i, site in enumerate(structure) if site.species_string != base_ele]
+    non_coords = [structure[i].coords[axis] for i in non_idx]
+
+    stats = []
+    for plane in cleavage_planes:
+        # skip if outside boundary limits
+        if plane < low_limit or plane > high_limit:
+            continue
+        # skip if no non-base_ele within threshold
+        if not any(abs(z - plane) <= distance_threshold for z in non_coords):
+            continue
+
+        df = get_ANSBO_distribution(
+            structure=structure,
+            bond_matrix=bond_matrix,
+            cleavage_plane=plane,
+            axis=axis
+        )
+        mean_bo = df["final_bond_order"].mean()
+        max_bo = df["final_bond_order"].max()
+        stats.append((plane, mean_bo, max_bo, df))
+
+    if not stats:
+        raise ValueError("No cleavage planes passed the filters.")
+
+    # Select extremes
+    plane_min_max, _, min_max_bo, df_min_max = min(stats, key=lambda x: x[2])
+    plane_min_mean, min_mean_bo, _, _ = min(stats, key=lambda x: x[1])
+
+    return (min_max_bo, plane_min_max), (min_mean_bo, plane_min_mean), df_min_max
+    
+def get_ANSBO_distribution(structure,
+                           bond_matrix,
+                           cleavage_plane,
+                           axis=2,
+                           zero_threshold = 0.05):
+    """
+    Returns a DataFrame of bonds crossing the cleavage plane, including their bond orders,
+    weights (1 for bonds fully in cell, 0.5 for periodic images), contributions,
+    and normalized contributions per unit area along the given axis.
+
+    Parameters:
+    - structure: A pymatgen Structure object with attributes .coords and .lattice
+    - bond_matrix: A DataFrame containing at least the columns ['atom1', 'atom2', 'final_bond_order',
+      'repeata', 'repeatb', 'repeatc']
+    - cleavage_plane: Coordinate value along `axis` at which the plane lies
+    - axis: The Cartesian axis index (0 for a, 1 for b, 2 for c)
+
+    Returns:
+    - df: A pandas DataFrame with rows for each bond crossing the plane and columns:
+        ['atom1', 'atom2', 'atom1pos', 'atom2pos', 'repeat*', 'final_bond_order',
+         'weight', 'contribution', 'normalized_contribution']
+    """
+    # Copy input DataFrame
+    df = bond_matrix.copy()
+    
+    # Compute atomic positions along the specified axis
+    df["atom1pos"] = df["atom1"].astype(int).apply(lambda i: structure[i-1].coords[axis])
+    df["atom2pos"] = df["atom2"].astype(int).apply(lambda i: structure[i-1].coords[axis])
+
+    # Select bonds that span the cleavage plane
+    mask_cross = (
+        df[["atom1pos", "atom2pos"]].max(axis=1) > cleavage_plane
+    ) & (
+        df[["atom1pos", "atom2pos"]].min(axis=1) < cleavage_plane
+    )
+    df = df.loc[mask_cross].copy()
+
+    # Identify periodic repeat directions based on axis
+    if axis == 0:
+        repeat1, repeat2 = "repeatb", "repeatc"
+    elif axis == 1:
+        repeat1, repeat2 = "repeata", "repeatc"
+    else:
+        repeat1, repeat2 = "repeata", "repeatb"
+
+    df_filt = df[df["final_bond_order"] > zero_threshold]
+    return df_filt
+
+def get_non_element_idx(structure, base_ele="Fe"):
+    # Compare each site.species_string to base_ele
+    return [
+        i
+        for i, site in enumerate(structure)
+        if site.species_string != base_ele
+    ]
